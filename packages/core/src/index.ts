@@ -1,5 +1,5 @@
 /**
- * @openmnemo/core — transcript parsing, import, dedup, and indexing.
+ * @openmnemo/core — transcript parsing, import, dedup, indexing, and recall.
  */
 
 // Re-export types
@@ -9,6 +9,7 @@ export type {
   TranscriptMessage,
   TranscriptToolEvent,
   ManifestEntry,
+  RecallResult,
 } from '@openmnemo/types'
 
 // Common utilities
@@ -78,6 +79,16 @@ export {
   appendJsonl,
   copyFile,
 } from './transcript/import.js'
+
+// Recall
+export {
+  recall,
+  syncCurrentProject,
+  findLatestSession,
+  findLatestFromJsonl,
+  cwdMatches,
+  formatText as formatRecallText,
+} from './recall/recall.js'
 
 // Utils
 export { toPosixPath } from './utils/path.js'
