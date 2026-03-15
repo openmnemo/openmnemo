@@ -1,3 +1,6 @@
+// Types — ParsedTranscript, Message, ToolEvent interfaces
+// To be implemented in Phase 1
+
 export type Client = 'codex' | 'claude' | 'gemini'
 
 export interface TranscriptMessage {
@@ -45,35 +48,4 @@ export interface ManifestEntry {
   tool_event_count: number
   cleaning_mode: string
   repo_mirror_enabled: boolean
-}
-
-export interface ProjectEntry {
-  readonly path: string
-  readonly name: string
-}
-
-export interface Config {
-  readonly heartbeat_interval: string
-  readonly watch_dirs: readonly string[]
-  readonly projects: readonly ProjectEntry[]
-  readonly auto_push: boolean
-  readonly log_level: string
-}
-
-export interface RecallResult {
-  found: boolean
-  project: string
-  repo: string
-  imported_count: number
-  message?: string
-  client?: string
-  session_id?: string
-  title?: string
-  started_at?: string
-  cwd?: string
-  branch?: string
-  message_count?: number
-  tool_event_count?: number
-  global_clean_path?: string
-  clean_content?: string
 }

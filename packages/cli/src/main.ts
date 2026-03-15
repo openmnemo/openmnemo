@@ -8,8 +8,8 @@ import { Command } from 'commander'
 const program = new Command()
 
 program
-  .name('openmnemo')
-  .description('OpenMnemo — transcript import, dedup, indexing, and session continuity')
+  .name('memorytree')
+  .description('MemoryTree — transcript import, dedup, indexing, and session continuity')
   .version('0.1.0')
 
 // ── init ──────────────────────────────────────────────────────────────────

@@ -14,13 +14,13 @@ import type { ManifestEntry } from '@openmnemo/types'
 // Lazy sql.js initialisation (cached promise)
 // ---------------------------------------------------------------------------
 
-let sqlPromise: Promise<SqlJsStatic> | undefined
+let sqlPromise: Promise<SqlJsStatic> | null = null
 
 function getSqlJs(): Promise<SqlJsStatic> {
-  if (sqlPromise === undefined) {
+  if (sqlPromise === null) {
     sqlPromise = initSqlJs()
   }
-  return sqlPromise!
+  return sqlPromise
 }
 
 // ---------------------------------------------------------------------------

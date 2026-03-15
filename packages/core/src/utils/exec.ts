@@ -1,3 +1,8 @@
+/**
+ * Subprocess execution wrapper for git and other commands.
+ * Port of heartbeat.py _git() and daemon subprocess calls.
+ */
+
 import { execFileSync } from 'node:child_process'
 
 export function execCommand(
