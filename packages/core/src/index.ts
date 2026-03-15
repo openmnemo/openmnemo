@@ -9,8 +9,9 @@ export type {
   TranscriptMessage,
   TranscriptToolEvent,
   ManifestEntry,
-  RecallResult,
 } from '@openmnemo/types'
+
+export type { RecallResult } from './recall/recall.js'
 
 // Common utilities
 export {
