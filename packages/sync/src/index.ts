@@ -1,12 +1,55 @@
 /**
  * @openmnemo/sync — heartbeat daemon, config, lock, alert, and background sync.
- *
- * Ported from memorytree-workflow TS branch (src/heartbeat/*).
  */
 
-// Modules to be ported from memorytree-workflow:
-// - heartbeat: main loop, per-project processing, sensitive scan, git ops
-// - config: ~/.memorytree/config.toml load/save/validate
-// - lock: PID-based lock file
-// - alert: alerts.json with dedup + threshold
-// - log: leveled logging with daily rotation
+// Config
+export {
+  memorytreeRoot,
+  configPath,
+  loadConfig,
+  saveConfig,
+  intervalToSeconds,
+  registerProject,
+} from './config.js'
+
+// Heartbeat
+export {
+  main as heartbeatMain,
+  runHeartbeat,
+  processProject,
+  scanSensitive,
+  gitCommitAndPush,
+  tryPush,
+} from './heartbeat.js'
+
+// Lock
+export {
+  lockPath,
+  acquireLock,
+  releaseLock,
+  readLockPid,
+  isProcessAlive,
+} from './lock.js'
+
+// Alert
+export {
+  MAX_ALERTS,
+  ALERT_TYPES,
+  FAILURE_THRESHOLD,
+  alertsPath,
+  readAlerts,
+  writeAlert,
+  writeAlertWithThreshold,
+  resetFailureCount,
+  clearAlerts,
+  formatAlertsForDisplay,
+} from './alert.js'
+export type { Alert } from './alert.js'
+
+// Logging
+export {
+  setupLogging,
+  getLogger,
+  _resetLogger,
+} from './log.js'
+export type { LogLevel, Logger } from './log.js'
