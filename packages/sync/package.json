@@ -1,0 +1,24 @@
+{
+  "name": "@openmnemo/sync",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Heartbeat daemon, config management, and background sync agent",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openmnemo/types": "workspace:*",
+    "@openmnemo/core": "workspace:*",
+    "smol-toml": "^1.3.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.1.1"
+  },
+  "files": ["dist"]
+}
