@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@openmnemo/types": "workspace:*",
+    "fast-glob": "^3.3.3",
     "sql.js": "^1.12.0"
   },
   "devDependencies": {
