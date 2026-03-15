@@ -1,4 +1,3 @@
-#\!/usr/bin/env node
 /**
  * MemoryTree CLI — unified entry point.
  * Registers all subcommands via commander.

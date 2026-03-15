@@ -11,14 +11,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@openmnemo/types": "workspace:*",
     "@openmnemo/core": "workspace:*",
     "@openmnemo/sync": "workspace:*",
+    "@openmnemo/types": "workspace:*",
     "commander": "^13.1.0"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "tsup": "^8.4.0",
     "typescript": "^5.7.3"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ]
 }

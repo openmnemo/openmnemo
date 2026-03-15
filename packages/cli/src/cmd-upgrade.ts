@@ -6,9 +6,9 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { normalizeLocale } from './cmd-locale.js'
-import { buildDatetime, resolveTemplateDir } from './cmd-init.js'
-import { upgrade, formatResultText } from './cmd-upgrade.js'
+import { normalizeLocale } from './project/locale.js'
+import { buildDatetime, resolveTemplateDir } from './project/scaffold.js'
+import { upgrade, formatResultText } from './project/upgrade.js'
 
 export interface UpgradeOptions {
   root: string

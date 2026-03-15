@@ -5,7 +5,7 @@
 
 import { resolve } from 'node:path'
 
-import { normalizeLocale, detectRepoLocale, detectSystemLocale } from './cmd-locale.js'
+import { normalizeLocale, detectRepoLocale, detectSystemLocale } from './project/locale.js'
 
 export interface LocaleOptions {
   root: string

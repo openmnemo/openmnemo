@@ -14,7 +14,7 @@ import {
   resolveTemplateDir,
   scaffoldContentFiles,
   writeTemplate,
-} from './cmd-init.js'
+} from './project/scaffold.js'
 
 export interface InitOptions {
   root: string
