@@ -55,7 +55,8 @@ export {
 } from './transcript/parse.js'
 
 // Database
-export { upsertSearchIndex } from './transcript/db.js'
+export { upsertSearchIndex, searchTranscripts } from './transcript/db.js'
+export type { SearchResult } from './transcript/db.js'
 
 // Discovery
 export {
@@ -94,3 +95,9 @@ export {
 // Utils
 export { toPosixPath } from './utils/path.js'
 export { execCommand, git } from './utils/exec.js'
+
+// Storage adapters
+export type { StorageAdapter } from './storage/adapter.js'
+export { LocalAdapter } from './storage/local-adapter.js'
+export { GiteaAdapter } from './storage/gitea-adapter.js'
+export type { GiteaAdapterOptions } from './storage/gitea-adapter.js'

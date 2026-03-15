@@ -90,8 +90,83 @@ const UPSERT_SQL = `
 `
 
 // ---------------------------------------------------------------------------
-// Public API
+// FTS5 full-text search
 // ---------------------------------------------------------------------------
+
+export interface SearchResult {
+  client: string
+  project: string
+  session_id: string
+  title: string
+  cwd: string
+  branch: string
+  started_at: string
+  rank: number
+}
+
+const CREATE_FTS_SQL = `
+  CREATE VIRTUAL TABLE IF NOT EXISTS transcripts_fts USING fts5(
+    title, cwd, branch,
+    content='transcripts',
+    content_rowid=rowid,
+    tokenize='unicode61'
+  )
+`
+
+const REBUILD_FTS_SQL = `
+  INSERT INTO transcripts_fts(transcripts_fts) VALUES('rebuild')
+`
+
+const SEARCH_SQL = `
+  SELECT t.client, t.project, t.session_id, t.title, t.cwd, t.branch, t.started_at,
+         rank
+  FROM transcripts_fts
+  JOIN transcripts t ON transcripts_fts.rowid = t.rowid
+  WHERE transcripts_fts MATCH ?
+  ORDER BY rank
+  LIMIT ?
+`
+
+/**
+ * Full-text search over the transcript index using FTS5.
+ */
+export async function searchTranscripts(
+  dbPath: string,
+  query: string,
+  limit = 20,
+): Promise<SearchResult[]> {
+  const SQL = await getSqlJs()
+
+  if (!existsSync(dbPath)) return []
+  const db = new SQL.Database(readFileSync(dbPath))
+
+  try {
+    db.run(CREATE_FTS_SQL)
+    db.run(REBUILD_FTS_SQL)
+
+    const results: SearchResult[] = []
+    const stmt = db.prepare(SEARCH_SQL)
+    stmt.bind([query, limit])
+
+    while (stmt.step()) {
+      const row = stmt.getAsObject() as Record<string, unknown>
+      results.push({
+        client: String(row['client'] ?? ''),
+        project: String(row['project'] ?? ''),
+        session_id: String(row['session_id'] ?? ''),
+        title: String(row['title'] ?? ''),
+        cwd: String(row['cwd'] ?? ''),
+        branch: String(row['branch'] ?? ''),
+        started_at: String(row['started_at'] ?? ''),
+        rank: Number(row['rank'] ?? 0),
+      })
+    }
+    stmt.free()
+    return results
+  } finally {
+    db.close()
+  }
+}
 
 /**
  * Insert or update a single transcript manifest row in the SQLite search
