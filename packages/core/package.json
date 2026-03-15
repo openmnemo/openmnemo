@@ -1,10 +1,19 @@
 {
   "name": "@openmnemo/core",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
-  "description": "Transcript parsing, import, dedup, and indexing",
+  "description": "Transcript parsing, import, dedup, indexing, and recall for OpenMnemo",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openmnemo/openmnemo.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/openmnemo/openmnemo#readme",
+  "author": "OpenMnemo Contributors",
+  "license": "MIT",
+  "keywords": ["openmnemo", "memory", "transcript", "parser", "sqlite", "ai"],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
     "test": "vitest run",
@@ -23,7 +32,5 @@
     "typescript": "^5.7.3",
     "vitest": "^3.1.1"
   },
-  "files": [
-    "dist"
-  ]
+  "files": ["dist"]
 }

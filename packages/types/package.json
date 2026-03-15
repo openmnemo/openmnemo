@@ -1,10 +1,19 @@
 {
   "name": "@openmnemo/types",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "description": "Shared TypeScript types for OpenMnemo",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openmnemo/openmnemo.git",
+    "directory": "packages/types"
+  },
+  "homepage": "https://github.com/openmnemo/openmnemo#readme",
+  "author": "OpenMnemo Contributors",
+  "license": "MIT",
+  "keywords": ["openmnemo", "memory", "transcript", "types", "ai"],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
     "lint": "eslint src",
