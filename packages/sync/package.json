@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
     "test": "vitest run",
+    "lint": "eslint src tests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

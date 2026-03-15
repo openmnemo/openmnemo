@@ -6,7 +6,7 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { recall, formatText } from '@openmnemo/core'
+import { recall, formatRecallText } from '@openmnemo/core'
 
 export interface RecallOptions {
   root: string
@@ -28,7 +28,7 @@ export async function cmdRecall(options: RecallOptions): Promise<number> {
   if (options.format === 'json') {
     process.stdout.write(JSON.stringify(result) + '\n')
   } else {
-    process.stdout.write(formatText(result) + '\n')
+    process.stdout.write(formatRecallText(result) + '\n')
   }
   return 0
 }

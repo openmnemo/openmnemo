@@ -57,21 +57,20 @@ export function cmdUninstall(): number {
 }
 
 export async function cmdRunOnce(): Promise<number> {
-  const { main } = await import('@openmnemo/sync')
-  return main()
+  const { heartbeatMain } = await import('@openmnemo/sync')
+  return heartbeatMain()
 }
 
 export async function cmdWatch(options: { interval?: string }): Promise<number> {
   const config = loadConfig()
   const intervalStr = options.interval ?? config.heartbeat_interval
   const seconds = intervalToSeconds(intervalStr)
-  const { main } = await import('@openmnemo/sync')
+  const { heartbeatMain } = await import('@openmnemo/sync')
 
   process.stdout.write(`Watch mode: running heartbeat every ${seconds}s. Press Ctrl+C to stop.\n`)
   try {
-    // eslint-disable-next-line no-constant-condition
     while (true) {
-      await main()
+      await heartbeatMain()
       await new Promise(r => setTimeout(r, seconds * 1000))
     }
   } catch {

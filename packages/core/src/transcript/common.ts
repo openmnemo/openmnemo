@@ -27,7 +27,6 @@ const ALL_SKIP_TYPES: ReadonlySet<string> = new Set([
 // ---------------------------------------------------------------------------
 
 export function slugify(value: string, fallback = 'session'): string {
-  // eslint-disable-next-line no-control-regex
   const asciiValue = value.replace(/[^\x00-\x7F]/g, '').toLowerCase()
   const slug = asciiValue.replace(/[^a-z0-9._-]+/g, '-').replace(/^[-._]+|[-._]+$/g, '')
   return slug || fallback
