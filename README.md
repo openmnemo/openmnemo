@@ -1,5 +1,8 @@
 # OpenMnemo
 
+[![CI](https://github.com/openmnemo/openmnemo/actions/workflows/ci.yml/badge.svg)](https://github.com/openmnemo/openmnemo/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@openmnemo/cli)](https://www.npmjs.com/package/@openmnemo/cli)
+
 Cross-platform AI conversation memory — aggregate, search, and version-control your coding sessions across Claude Code, Codex, and Gemini CLI.
 
 > Named after Mnemosyne, the Greek goddess of memory.
@@ -36,7 +39,15 @@ packages/
 | Codex | JSONL | Planned |
 | Gemini CLI | JSON/JSONL | Planned |
 
-## Features (Planned)
+## Install
+
+```bash
+npx @openmnemo/cli --help
+# or
+npm install -g @openmnemo/cli
+```
+
+## Features
 
 - Multi-client transcript discovery and incremental import
 - Deterministic cleaning (no model tokens spent)
