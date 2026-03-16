@@ -1,6 +1,6 @@
 {
   "name": "@openmnemo/cli",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "type": "module",
   "description": "OpenMnemo unified CLI — manage AI conversation memory",
   "bin": {
