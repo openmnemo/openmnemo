@@ -9,6 +9,7 @@ import {
   parseCodexTranscript,
   parseClaudeTranscript,
   parseGeminiTranscript,
+  parseDoubaoTranscript,
 } from '../../src/transcript/parse.js'
 
 // ---------------------------------------------------------------------------
@@ -619,5 +620,160 @@ describe('parseTranscript', () => {
     const result = parseTranscript('auto', filePath)
     expect(result.client).toBe('codex')
     expect(result.messages[0]!.text).toBe('auto-detected')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// inferClient — doubao detection
+// ---------------------------------------------------------------------------
+
+describe('inferClient — doubao', () => {
+  it('infers doubao from doubao_ filename prefix', () => {
+    expect(inferClient('auto', '/tmp/doubao_20260316_chat.txt')).toBe('doubao')
+  })
+
+  it('infers doubao from /doubao/ in path', () => {
+    expect(inferClient('auto', '/home/user/doubao/session.txt')).toBe('doubao')
+  })
+
+  it('returns explicit doubao unchanged', () => {
+    expect(inferClient('doubao', '/any/path/file.txt')).toBe('doubao')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// parseDoubaoTranscript
+// ---------------------------------------------------------------------------
+
+const DOUBAO_SAMPLE = [
+  'Title: 有没有开源的多维表格系统',
+  'URL: https://www.doubao.com/chat/38416801786598914',
+  'Platform: 豆包',
+  'Created: 2026-03-16 10:22:17',
+  'Messages: 2',
+  '',
+  'User: [2026-03-16 10:22:17]',
+  '',
+  '有没有开源的多维表格系统能代替它呢？',
+  '',
+  'AI: [2026-03-16 10:23:05]',
+  '',
+  '当然有，比如 NocoDB、Baserow 等。',
+  '',
+].join('\n')
+
+const DOUBAO_SAMPLE_CRLF = DOUBAO_SAMPLE.replace(/\n/g, '\r\n')
+
+describe('parseDoubaoTranscript', () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'doubao-test-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('parses title from header', () => {
+    const f = join(tmpDir, 'doubao_chat.txt')
+    writeFileSync(f, DOUBAO_SAMPLE)
+    const result = parseDoubaoTranscript(f)
+    expect(result.title).toBe('有没有开源的多维表格系统')
+  })
+
+  it('derives session_id from URL', () => {
+    const f = join(tmpDir, 'doubao_chat.txt')
+    writeFileSync(f, DOUBAO_SAMPLE)
+    const result = parseDoubaoTranscript(f)
+    expect(result.session_id).toBe('38416801786598914')
+  })
+
+  it('parses Created as naive ISO timestamp', () => {
+    const f = join(tmpDir, 'doubao_chat.txt')
+    writeFileSync(f, DOUBAO_SAMPLE)
+    const result = parseDoubaoTranscript(f)
+    expect(result.started_at).toBe('2026-03-16T10:22:17')
+  })
+
+  it('parses user and assistant messages', () => {
+    const f = join(tmpDir, 'doubao_chat.txt')
+    writeFileSync(f, DOUBAO_SAMPLE)
+    const result = parseDoubaoTranscript(f)
+    expect(result.messages).toHaveLength(2)
+    expect(result.messages[0]!.role).toBe('user')
+    expect(result.messages[0]!.text).toBe('有没有开源的多维表格系统能代替它呢？')
+    expect(result.messages[1]!.role).toBe('assistant')
+    expect(result.messages[1]!.text).toBe('当然有，比如 NocoDB、Baserow 等。')
+  })
+
+  it('stores message timestamps as naive ISO', () => {
+    const f = join(tmpDir, 'doubao_chat.txt')
+    writeFileSync(f, DOUBAO_SAMPLE)
+    const result = parseDoubaoTranscript(f)
+    expect(result.messages[0]!.timestamp).toBe('2026-03-16T10:22:17')
+    expect(result.messages[1]!.timestamp).toBe('2026-03-16T10:23:05')
+  })
+
+  it('handles Windows CRLF line endings', () => {
+    const f = join(tmpDir, 'doubao_crlf.txt')
+    writeFileSync(f, DOUBAO_SAMPLE_CRLF)
+    const result = parseDoubaoTranscript(f)
+    expect(result.title).toBe('有没有开源的多维表格系统')
+    expect(result.session_id).toBe('38416801786598914')
+    expect(result.messages).toHaveLength(2)
+    expect(result.messages[0]!.text).toBe('有没有开源的多维表格系统能代替它呢？')
+  })
+
+  it('falls back to filename stem when header fields are missing', () => {
+    const f = join(tmpDir, 'doubao_fallback.txt')
+    // Leading blank line ends the header block immediately; turn follows
+    writeFileSync(f, '\nUser: [2026-03-16 10:22:17]\n\nhello\n')
+    const result = parseDoubaoTranscript(f)
+    expect(result.title).toBe('doubao_fallback')
+    expect(result.session_id).toBe('doubao_fallback')
+    expect(result.messages[0]!.text).toBe('hello')
+  })
+
+  it('sets client to doubao', () => {
+    const f = join(tmpDir, 'doubao_chat.txt')
+    writeFileSync(f, DOUBAO_SAMPLE)
+    expect(parseDoubaoTranscript(f).client).toBe('doubao')
+  })
+
+  it('has no tool_events', () => {
+    const f = join(tmpDir, 'doubao_chat.txt')
+    writeFileSync(f, DOUBAO_SAMPLE)
+    expect(parseDoubaoTranscript(f).tool_events).toHaveLength(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// parseTranscript dispatch — doubao
+// ---------------------------------------------------------------------------
+
+describe('parseTranscript dispatch — doubao', () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'doubao-dispatch-'))
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('dispatches to doubao parser via explicit client', () => {
+    const f = join(tmpDir, 'chat.txt')
+    writeFileSync(f, DOUBAO_SAMPLE)
+    const result = parseTranscript('doubao', f)
+    expect(result.client).toBe('doubao')
+  })
+
+  it('dispatches to doubao parser via auto-detection', () => {
+    const f = join(tmpDir, 'doubao_chat.txt')
+    writeFileSync(f, DOUBAO_SAMPLE)
+    const result = parseTranscript('auto', f)
+    expect(result.client).toBe('doubao')
   })
 })

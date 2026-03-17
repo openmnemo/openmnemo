@@ -391,7 +391,7 @@ const DOUBAO_TURN_RE = /^(User|AI):\s*\[(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\
 
 export function parseDoubaoTranscript(filePath: string): ParsedTranscript {
   const content = readFileSync(filePath, 'utf-8')
-  const lines = content.split('\n')
+  const lines = content.split(/\r?\n/)
 
   const stem = basename(filePath, extname(filePath))
   let title = stem

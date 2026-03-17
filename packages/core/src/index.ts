@@ -52,6 +52,7 @@ export {
   parseCodexTranscript,
   parseClaudeTranscript,
   parseGeminiTranscript,
+  parseDoubaoTranscript,
 } from './transcript/parse.js'
 
 // Database
