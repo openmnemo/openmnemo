@@ -17,8 +17,34 @@ import type { LogLevel } from './log.js'
 import { getLogger, setupLogging } from './log.js'
 import { git } from '@openmnemo/core'
 import { toPosixPath } from '@openmnemo/core'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { existsSync } from 'node:fs'
+
+// ---------------------------------------------------------------------------
+// Report generation
+// ---------------------------------------------------------------------------
+
+async function runBuildReport(config: Config, projectPath: string, projectName: string): Promise<void> {
+  const logger = getLogger()
+  const output = join(projectPath, 'Memory', '07_reports')
+  try {
+    const { buildReport } = await import('@openmnemo/report')
+    await buildReport({
+      root: projectPath,
+      output,
+      noAi: !process.env['ANTHROPIC_API_KEY'],
+      model: config.ai_summary_model,
+      locale: config.locale,
+      ghPagesBranch: config.gh_pages_branch,
+      cname: config.cname,
+      webhookUrl: config.webhook_url,
+      reportBaseUrl: config.report_base_url,
+    })
+    logger.info(`[${projectName}] Report generated at ${output}.`)
+  } catch (err: unknown) {
+    logger.error(`[${projectName}] Report generation failed: ${String(err)}`)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Sensitive pattern detection
@@ -126,11 +152,14 @@ export async function processProject(config: Config, projectPath: string, projec
 
   if (importedCount === 0) {
     logger.info(`[${projectName}] No new transcripts to import.`)
-    return
+  } else {
+    logger.info(`[${projectName}] Imported ${importedCount} transcript(s).`)
+    gitCommitAndPush(config, projectPath, projectName, importedCount)
   }
 
-  logger.info(`[${projectName}] Imported ${importedCount} transcript(s).`)
-  gitCommitAndPush(config, projectPath, projectName, importedCount)
+  if (config.generate_report) {
+    await runBuildReport(config, projectPath, projectName)
+  }
 }
 
 // ---------------------------------------------------------------------------

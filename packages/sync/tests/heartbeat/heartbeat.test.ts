@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -18,7 +18,17 @@ vi.mock('node:os', async () => {
   }
 })
 
-import { scanSensitive } from '../../src/heartbeat.js'
+// ---------------------------------------------------------------------------
+// Hoisted mocks (must be at top level so vi.mock factory captures them)
+// ---------------------------------------------------------------------------
+
+const buildReportMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
+
+vi.mock('@openmnemo/report', () => ({
+  buildReport: buildReportMock,
+}))
+
+import { scanSensitive, processProject } from '../../src/heartbeat.js'
 import { _resetLogger, setupLogging } from '../../src/log.js'
 import { readAlerts, clearAlerts } from '../../src/alert.js'
 import type { ParsedTranscript } from '@openmnemo/types'
@@ -190,5 +200,57 @@ describe('SENSITIVE_PATTERNS individual patterns', () => {
     expect(bearerPattern.test('bearer AAAAAAAAAAAAAAAAAAAA')).toBe(true)
     expect(bearerPattern.test('Bearer short')).toBe(false)
     expect(bearerPattern.test('no bearer here')).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// processProject — generate_report integration
+// ---------------------------------------------------------------------------
+
+describe('processProject — generate_report', () => {
+  function makeConfig(generate_report: boolean) {
+    return {
+      heartbeat_interval: '5m',
+      watch_dirs: [],
+      projects: [],
+      auto_push: false,
+      log_level: 'warn',
+      generate_report,
+      locale: 'en',
+      ai_summary_model: 'claude-haiku-4-5-20251001',
+      gh_pages_branch: '',
+      cname: '',
+      webhook_url: '',
+      report_base_url: '',
+    }
+  }
+
+  beforeEach(() => {
+    buildReportMock.mockClear()
+  })
+
+  it('calls buildReport when generate_report=true', async () => {
+    const projectPath = mkdtempSync(join(tmpdir(), 'proj-'))
+    mkdirSync(join(projectPath, 'Memory'), { recursive: true })
+    try {
+      await processProject(makeConfig(true), projectPath, 'test-project')
+      expect(buildReportMock).toHaveBeenCalledOnce()
+      const opts = buildReportMock.mock.calls[0]?.[0] as { root: string; output: string }
+      expect(opts.root).toBe(projectPath)
+      expect(opts.output).toContain('07_reports')
+    } finally {
+      rmSync(projectPath, { recursive: true, force: true })
+    }
+  })
+
+  it('does not call buildReport when generate_report=false', async () => {
+    const projectPath = mkdtempSync(join(tmpdir(), 'proj-'))
+    mkdirSync(join(projectPath, 'Memory'), { recursive: true })
+    try {
+      await processProject(makeConfig(false), projectPath, 'test-project')
+      expect(buildReportMock).not.toHaveBeenCalled()
+    } finally {
+      rmSync(projectPath, { recursive: true, force: true })
+    }
   })
 })
