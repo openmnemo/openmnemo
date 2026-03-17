@@ -1,6 +1,6 @@
 {
   "name": "@openmnemo/report",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "OpenMnemo report generation — builds a static HTML dashboard from Memory/",
   "main": "dist/index.js",
@@ -13,7 +13,13 @@
   "homepage": "https://github.com/openmnemo/openmnemo#readme",
   "author": "OpenMnemo Contributors",
   "license": "MIT",
-  "keywords": ["openmnemo", "memory", "report", "html", "dashboard"],
+  "keywords": [
+    "openmnemo",
+    "memory",
+    "report",
+    "html",
+    "dashboard"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
     "test": "vitest run",
@@ -30,5 +36,10 @@
     "typescript": "^5.7.3",
     "vitest": "^3.1.1"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
