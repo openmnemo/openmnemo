@@ -35,10 +35,11 @@
     "@openmnemo/report": "workspace:*",
     "@openmnemo/sync": "workspace:*",
     "@openmnemo/types": "workspace:*",
-    "commander": "^13.1.0"
+    "commander": "^13.1.0",
+    "@anthropic-ai/sdk": "^0.39.0"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
+    "@types/node": "^20.0.0",
     "tsup": "^8.4.0",
     "typescript": "^5.7.3",
     "vitest": "^3.1.1"
@@ -48,5 +49,8 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

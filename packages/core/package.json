@@ -33,7 +33,7 @@
     "sql.js": "^1.12.0"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
+    "@types/node": "^20.0.0",
     "@types/sql.js": "^1.4.9",
     "tsup": "^8.4.0",
     "typescript": "^5.7.3",
@@ -44,5 +44,14 @@
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   }
 }

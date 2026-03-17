@@ -3,8 +3,8 @@
   "version": "0.2.0",
   "type": "module",
   "description": "OpenMnemo report generation — builds a static HTML dashboard from Memory/",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/openmnemo/openmnemo.git",
@@ -27,19 +27,36 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@openmnemo/types": "workspace:*",
-    "@anthropic-ai/sdk": "^0.39.0"
+    "@openmnemo/types": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
+    "@types/node": "^20.0.0",
     "tsup": "^8.4.0",
     "typescript": "^5.7.3",
-    "vitest": "^3.1.1"
+    "vitest": "^3.1.1",
+    "@anthropic-ai/sdk": "^0.39.0"
   },
   "files": [
     "dist"
   ],
   "publishConfig": {
     "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    }
   }
 }

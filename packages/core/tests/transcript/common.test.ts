@@ -17,8 +17,8 @@ import {
 // ---------------------------------------------------------------------------
 
 describe('constants', () => {
-  it('CLIENTS contains codex, claude, gemini', () => {
-    expect(CLIENTS).toEqual(new Set(['codex', 'claude', 'gemini']))
+  it('CLIENTS contains codex, claude, gemini, doubao', () => {
+    expect(CLIENTS).toEqual(new Set(['codex', 'claude', 'gemini', 'doubao']))
   })
   it('TEXT_BLOCK_TYPES contains expected types', () => {
     expect(TEXT_BLOCK_TYPES).toEqual(new Set(['input_text', 'output_text', 'text']))

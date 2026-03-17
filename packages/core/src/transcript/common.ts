@@ -12,7 +12,7 @@ import type { TranscriptMessage, TranscriptToolEvent } from '@openmnemo/types'
 // Constants
 // ---------------------------------------------------------------------------
 
-export const CLIENTS: ReadonlySet<string> = new Set(['codex', 'claude', 'gemini'])
+export const CLIENTS: ReadonlySet<string> = new Set(['codex', 'claude', 'gemini', 'doubao'])
 export const TEXT_BLOCK_TYPES: ReadonlySet<string> = new Set(['input_text', 'output_text', 'text'])
 export const SKIP_BLOCK_TYPES: ReadonlySet<string> = new Set(['thinking', 'reasoning'])
 export const TOOL_USE_TYPES: ReadonlySet<string> = new Set(['tool_use'])

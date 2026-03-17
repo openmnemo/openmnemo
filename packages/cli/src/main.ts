@@ -1,16 +1,20 @@
 /**
- * MemoryTree CLI — unified entry point.
+ * OpenMnemo CLI — unified entry point.
  * Registers all subcommands via commander.
  */
 
+import { createRequire } from 'node:module'
 import { Command } from 'commander'
+
+const _require = createRequire(import.meta.url)
+const { version: cliVersion } = _require('../package.json') as { version: string }
 
 const program = new Command()
 
 program
-  .name('memorytree')
-  .description('MemoryTree — transcript import, dedup, indexing, and session continuity')
-  .version('0.1.0')
+  .name('openmnemo')
+  .description('OpenMnemo — cross-platform AI conversation memory manager')
+  .version(cliVersion)
 
 // ── init ──────────────────────────────────────────────────────────────────
 
