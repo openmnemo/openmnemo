@@ -1,0 +1,29 @@
+version: 2
+
+updates:
+  # npm packages (monorepo root + all workspace packages)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      typescript-tooling:
+        patterns:
+          - "typescript"
+          - "tsup"
+          - "vitest"
+          - "@vitest/*"
+          - "eslint"
+          - "@types/*"
+      openmnemo-runtime:
+        patterns:
+          - "commander"
+          - "@anthropic-ai/*"
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

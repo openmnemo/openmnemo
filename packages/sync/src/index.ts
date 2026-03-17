@@ -50,6 +50,5 @@ export type { Alert } from './alert.js'
 export {
   setupLogging,
   getLogger,
-  _resetLogger,
 } from './log.js'
 export type { LogLevel, Logger } from './log.js'
