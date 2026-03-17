@@ -129,7 +129,6 @@ export async function buildReport(options: BuildReportOptions): Promise<void> {
         mkdirSync(dirname(outPath), { recursive: true })
         writeFileSync(outPath, html, 'utf-8')
         } catch (err: unknown) {
-          // eslint-disable-next-line no-console
           getLogger().warn(`[build] Failed to render ${manifest.session_id}: ${String(err)}`)
         }
       })(),

@@ -3,7 +3,7 @@
 [![CI](https://github.com/openmnemo/openmnemo/actions/workflows/ci.yml/badge.svg)](https://github.com/openmnemo/openmnemo/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@openmnemo/cli)](https://www.npmjs.com/package/@openmnemo/cli)
 
-Cross-platform AI conversation memory — aggregate, search, and version-control your coding sessions across Claude Code, Codex, and Gemini CLI.
+Cross-platform AI conversation memory — aggregate, search, and version-control your coding sessions across Claude Code, Codex, Gemini CLI, and Doubao.
 
 > Named after Mnemosyne, the Greek goddess of memory.
 
@@ -15,6 +15,7 @@ Monorepo powered by pnpm workspaces + Turborepo.
 packages/
   types/    @openmnemo/types    — shared TypeScript interfaces
   core/     @openmnemo/core     — transcript parsing, import, dedup, indexing
+  report/   @openmnemo/report   — static HTML dashboard generation
   sync/     @openmnemo/sync     — heartbeat daemon, config, lock, background sync
   cli/      @openmnemo/cli      — unified CLI (openmnemo command)
 ```
@@ -23,21 +24,22 @@ packages/
 
 ```
 @openmnemo/types
+    ↑              ↑
+@openmnemo/core  @openmnemo/report  (both depend on types)
+    ↑              ↑
+@openmnemo/sync  (depends on types + core + report)
     ↑
-@openmnemo/core  (depends on types)
-    ↑
-@openmnemo/sync  (depends on types + core)
-    ↑
-@openmnemo/cli   (depends on types + core + sync)
+@openmnemo/cli   (depends on types + core + report + sync)
 ```
 
 ## Supported Clients
 
 | Client | Transcript Format | Status |
 |--------|------------------|--------|
-| Claude Code | JSONL | Planned |
-| Codex | JSONL | Planned |
-| Gemini CLI | JSON/JSONL | Planned |
+| Claude Code | JSONL | ✅ Supported |
+| Codex | JSONL | ✅ Supported |
+| Gemini CLI | JSON/JSONL | ✅ Supported |
+| Doubao | JSON | ✅ Supported |
 
 ## Install
 
@@ -56,6 +58,8 @@ npm install -g @openmnemo/cli
 - Git-based version control for conversation history
 - Cross-session context recall
 - Sensitive info detection (warn-only, no auto-redact)
+- Static HTML dashboard with charts, knowledge graph, and search
+- GitHub Pages deploy + webhook notifications (Feishu / Slack / Discord / Telegram)
 
 ## Requirements
 
