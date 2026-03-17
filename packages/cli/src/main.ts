@@ -75,7 +75,7 @@ program
   .description('Import one local transcript into MemoryTree archives')
   .requiredOption('--source <path>', 'Raw transcript source file path')
   .option('--root <path>', 'Target repository root', '.')
-  .option('--client <client>', 'Transcript client: auto, codex, claude, gemini', 'auto')
+  .option('--client <client>', 'Transcript client: auto, codex, claude, gemini, doubao', 'auto')
   .option('--project-name <name>', 'Project label', '')
   .option('--global-root <path>', 'Override global transcript root')
   .option('--raw-upload-permission <perm>', 'Permission: not-set, approved, denied', 'not-set')

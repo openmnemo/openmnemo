@@ -180,9 +180,13 @@ openmnemo upgrade --root .
 | Claude Code | `~/.claude/projects/` | JSONL | ✅ Supported |
 | Codex | `~/.codex/sessions/` | JSONL | ✅ Supported |
 | Gemini CLI | `~/.gemini/` | JSON / JSONL | ✅ Supported |
-| Doubao | — | TXT | 🚧 Coming soon |
+| Doubao | Manual (`--source`) | TXT | ✅ Supported |
 
-> Doubao transcript parsing is not yet implemented in the TypeScript CLI. Doubao sessions can be imported via the [memorytree-workflow](https://github.com/beyondchenlin/memorytree-workflow) Python skill.
+> Doubao transcripts are not auto-discovered. Export your conversation from the Doubao app (as a `.txt` file) and import manually:
+>
+> ```bash
+> openmnemo import --source doubao_chat.txt --client doubao --root .
+> ```
 
 ---
 
