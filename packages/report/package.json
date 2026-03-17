@@ -1,0 +1,31 @@
+{
+  "name": "@openmnemo/report",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "OpenMnemo report generation — builds a static HTML dashboard from Memory/",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openmnemo/openmnemo.git",
+    "directory": "packages/report"
+  },
+  "homepage": "https://github.com/openmnemo/openmnemo#readme",
+  "author": "OpenMnemo Contributors",
+  "license": "MIT",
+  "keywords": ["openmnemo", "memory", "report", "html", "dashboard"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openmnemo/types": "workspace:*",
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.7.3"
+  },
+  "files": ["dist"]
+}

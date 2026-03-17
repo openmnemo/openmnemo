@@ -35,6 +35,13 @@ export interface Config {
   readonly projects: readonly ProjectEntry[]
   readonly auto_push: boolean
   readonly log_level: string
+  readonly generate_report: boolean
+  readonly locale: string
+  readonly ai_summary_model: string
+  readonly gh_pages_branch: string
+  readonly cname: string
+  readonly webhook_url: string
+  readonly report_base_url: string
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +152,13 @@ function defaultConfig(): Config {
     projects: [],
     auto_push: DEFAULT_AUTO_PUSH,
     log_level: DEFAULT_LOG_LEVEL,
+    generate_report: false,
+    locale: 'en',
+    ai_summary_model: 'claude-haiku-4-5-20251001',
+    gh_pages_branch: '',
+    cname: '',
+    webhook_url: '',
+    report_base_url: '',
   }
 }
 
@@ -195,6 +209,13 @@ function parseRaw(raw: Record<string, unknown>): Config {
     projects,
     auto_push: autoPush as boolean,
     log_level: logLevel as string,
+    generate_report: typeof raw['generate_report'] === 'boolean' ? raw['generate_report'] : false,
+    locale: typeof raw['locale'] === 'string' ? raw['locale'] : 'en',
+    ai_summary_model: typeof raw['ai_summary_model'] === 'string' ? raw['ai_summary_model'] : 'claude-haiku-4-5-20251001',
+    gh_pages_branch: typeof raw['gh_pages_branch'] === 'string' ? raw['gh_pages_branch'] : '',
+    cname: typeof raw['cname'] === 'string' ? raw['cname'] : '',
+    webhook_url: typeof raw['webhook_url'] === 'string' ? raw['webhook_url'] : '',
+    report_base_url: typeof raw['report_base_url'] === 'string' ? raw['report_base_url'] : '',
   }
 }
 

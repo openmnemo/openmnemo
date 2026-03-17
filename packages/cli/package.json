@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@openmnemo/core": "workspace:*",
+    "@openmnemo/report": "workspace:*",
     "@openmnemo/sync": "workspace:*",
     "@openmnemo/types": "workspace:*",
     "commander": "^13.1.0"

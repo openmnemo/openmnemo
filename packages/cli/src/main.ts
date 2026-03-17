@@ -206,4 +206,44 @@ daemon
     process.exitCode = cmdStatus()
   })
 
+// ── report ────────────────────────────────────────────────────────────────
+
+const report = program
+  .command('report')
+  .description('Generate and serve MemoryTree HTML reports')
+
+report
+  .command('build')
+  .description('Build a static HTML report from Memory/ directory')
+  .option('--root <path>', 'Repository root (contains Memory/)', '.')
+  .option('--output <path>', 'Output directory', './Memory/07_reports')
+  .option('--no-ai', 'Skip AI summarization')
+  .option('--model <model>', 'AI model for summaries', 'claude-haiku-4-5-20251001')
+  .option('--locale <locale>', 'Report locale: en or zh-CN', 'en')
+  .option('--report-base-url <url>', 'Base URL for RSS/OG links')
+  .action(async (opts) => {
+    const { cmdReportBuild } = await import('./cmd-report.js')
+    process.exitCode = await cmdReportBuild({
+      root: opts.root,
+      output: opts.output,
+      noAi: opts.ai === false,
+      model: opts.model,
+      locale: opts.locale,
+      reportBaseUrl: opts.reportBaseUrl,
+    })
+  })
+
+report
+  .command('serve')
+  .description('Serve a built report over HTTP')
+  .option('--dir <path>', 'Report directory to serve', './Memory/07_reports')
+  .option('--port <n>', 'HTTP port', '3000')
+  .action(async (opts) => {
+    const { cmdReportServe } = await import('./cmd-report.js')
+    process.exitCode = cmdReportServe({
+      dir: opts.dir,
+      port: parseInt(opts.port, 10) || 3000,
+    })
+  })
+
 program.parse()
