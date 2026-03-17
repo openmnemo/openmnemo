@@ -175,14 +175,14 @@ openmnemo upgrade --root .
 
 ## Supported AI Clients
 
-| Client | Auto-discovery path | Transcript format |
-|--------|--------------------|--------------------|
-| Claude Code | `~/.claude/projects/` | JSONL |
-| Codex | `~/.codex/sessions/` | JSONL |
-| Gemini CLI | `~/.gemini/` | JSON / JSONL |
-| Doubao | Manual (`--source`) | JSON |
+| Client | Auto-discovery path | Transcript format | Status |
+|--------|--------------------|--------------------|--------|
+| Claude Code | `~/.claude/projects/` | JSONL | ✅ Supported |
+| Codex | `~/.codex/sessions/` | JSONL | ✅ Supported |
+| Gemini CLI | `~/.gemini/` | JSON / JSONL | ✅ Supported |
+| Doubao | — | TXT | 🚧 Coming soon |
 
-> Doubao transcripts are not auto-discovered. Export them from the Doubao app and use `openmnemo import --source <file> --client doubao`.
+> Doubao transcript parsing is not yet implemented in the TypeScript CLI. Doubao sessions can be imported via the [memorytree-workflow](https://github.com/beyondchenlin/memorytree-workflow) Python skill.
 
 ---
 
