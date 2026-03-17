@@ -1,0 +1,23 @@
+{
+  "client": "doubao",
+  "project": "openmnemo",
+  "session_id": "33849769299295490",
+  "title": "那我想问你，有没有开源的多维表格系统能代替它呢？",
+  "started_at": "2026-03-16T15:42:44Z",
+  "imported_at": "2026-03-17T08:12:58Z",
+  "cwd": "",
+  "branch": "",
+  "raw_source_path": "D:/demo1/openmnemo/chat-memo_61_20260316154801/doubao_20260316154244_那我想问你_有没有开源的多维表格系统能代替它呢.txt",
+  "raw_sha256": "6621bfbed40bb0d3f52834e81fc9ac88daeb734916844340685d93c0f69dd6b9",
+  "raw_upload_permission": "approved",
+  "repo_raw_path": "Memory/06_transcripts/raw/doubao/2026/03/33849769299295490__6621bfbe.txt",
+  "repo_clean_path": "Memory/06_transcripts/clean/doubao/2026/03/33849769299295490__6621bfbe.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/doubao/2026/03/33849769299295490__6621bfbe.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/doubao/openmnemo/2026/03/33849769299295490__6621bfbe.txt",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/doubao/openmnemo/2026/03/33849769299295490__6621bfbe.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/doubao/openmnemo/2026/03/33849769299295490__6621bfbe.json",
+  "message_count": 227,
+  "tool_event_count": 0,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}

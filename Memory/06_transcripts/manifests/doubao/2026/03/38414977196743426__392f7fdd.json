@@ -1,0 +1,23 @@
+{
+  "client": "doubao",
+  "project": "openmnemo",
+  "session_id": "38414977196743426",
+  "title": "又特别的简单，比较私人化。那么我想做一款代办清单，因为我觉得每个人都需要有待办事项，就像国家的五年计...",
+  "started_at": "2026-03-16T15:34:49Z",
+  "imported_at": "2026-03-17T08:12:57Z",
+  "cwd": "",
+  "branch": "",
+  "raw_source_path": "D:/demo1/openmnemo/chat-memo_61_20260316154801/doubao_20260316153449_又特别的简单_比较私人化_那么我想做一款代办清单_因为我觉得.txt",
+  "raw_sha256": "392f7fdd6f91fd74d910595eacfd56e1870e3e801b5712439ae927427844f7b0",
+  "raw_upload_permission": "approved",
+  "repo_raw_path": "Memory/06_transcripts/raw/doubao/2026/03/38414977196743426__392f7fdd.txt",
+  "repo_clean_path": "Memory/06_transcripts/clean/doubao/2026/03/38414977196743426__392f7fdd.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/doubao/2026/03/38414977196743426__392f7fdd.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/doubao/openmnemo/2026/03/38414977196743426__392f7fdd.txt",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/doubao/openmnemo/2026/03/38414977196743426__392f7fdd.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/doubao/openmnemo/2026/03/38414977196743426__392f7fdd.json",
+  "message_count": 14,
+  "tool_event_count": 0,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}

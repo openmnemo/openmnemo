@@ -1,0 +1,23 @@
+{
+  "client": "doubao",
+  "project": "openmnemo",
+  "session_id": "35898549923802626",
+  "title": "是这样的，我有这么一个需求，就是现在用户通过 AI 想需求各种的事情。比如说一个需求就是想制作工具，...",
+  "started_at": "2026-03-16T15:42:30Z",
+  "imported_at": "2026-03-17T08:12:57Z",
+  "cwd": "",
+  "branch": "",
+  "raw_source_path": "D:/demo1/openmnemo/chat-memo_61_20260316154801/doubao_20260316154230_是这样的_我有这么一个需求_就是现在用户通过_AI_想需求各.txt",
+  "raw_sha256": "6d418f7194fd14baaf3603f942dfc30706f78b66f03b669ca4954ae5d1f6b14c",
+  "raw_upload_permission": "approved",
+  "repo_raw_path": "Memory/06_transcripts/raw/doubao/2026/03/35898549923802626__6d418f71.txt",
+  "repo_clean_path": "Memory/06_transcripts/clean/doubao/2026/03/35898549923802626__6d418f71.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/doubao/2026/03/35898549923802626__6d418f71.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/doubao/openmnemo/2026/03/35898549923802626__6d418f71.txt",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/doubao/openmnemo/2026/03/35898549923802626__6d418f71.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/doubao/openmnemo/2026/03/35898549923802626__6d418f71.json",
+  "message_count": 14,
+  "tool_event_count": 0,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}

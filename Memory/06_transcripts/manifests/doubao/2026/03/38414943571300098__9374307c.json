@@ -1,0 +1,23 @@
+{
+  "client": "doubao",
+  "project": "openmnemo",
+  "session_id": "38414943571300098",
+  "title": "解读图片的短剧类型，我应该做一个什么主题的短剧比较有市场呢",
+  "started_at": "2026-03-16T15:35:24Z",
+  "imported_at": "2026-03-17T08:12:57Z",
+  "cwd": "",
+  "branch": "",
+  "raw_source_path": "D:/demo1/openmnemo/chat-memo_61_20260316154801/doubao_20260316153524_解读图片的短剧类型_我应该做一个什么主题的短剧比较有市场呢.txt",
+  "raw_sha256": "9374307ca6670df80424313ec0a188da0382ce424f611aba417bdaae6d94e4c4",
+  "raw_upload_permission": "approved",
+  "repo_raw_path": "Memory/06_transcripts/raw/doubao/2026/03/38414943571300098__9374307c.txt",
+  "repo_clean_path": "Memory/06_transcripts/clean/doubao/2026/03/38414943571300098__9374307c.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/doubao/2026/03/38414943571300098__9374307c.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/doubao/openmnemo/2026/03/38414943571300098__9374307c.txt",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/doubao/openmnemo/2026/03/38414943571300098__9374307c.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/doubao/openmnemo/2026/03/38414943571300098__9374307c.json",
+  "message_count": 36,
+  "tool_event_count": 0,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}

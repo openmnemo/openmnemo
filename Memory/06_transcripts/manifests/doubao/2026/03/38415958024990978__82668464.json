@@ -1,0 +1,23 @@
+{
+  "client": "doubao",
+  "project": "openmnemo",
+  "session_id": "38415958024990978",
+  "title": "这个文档讲的是什么内容？详细的说一下这两个文档。",
+  "started_at": "2026-03-16T15:33:28Z",
+  "imported_at": "2026-03-17T08:12:57Z",
+  "cwd": "",
+  "branch": "",
+  "raw_source_path": "D:/demo1/openmnemo/chat-memo_61_20260316154801/doubao_20260316153328_这个文档讲的是什么内容_详细的说一下这两个文档.txt",
+  "raw_sha256": "82668464f0b42ef681c96b3bf936454ee141fdbcbadcdca9cede10045dbb0505",
+  "raw_upload_permission": "approved",
+  "repo_raw_path": "Memory/06_transcripts/raw/doubao/2026/03/38415958024990978__82668464.txt",
+  "repo_clean_path": "Memory/06_transcripts/clean/doubao/2026/03/38415958024990978__82668464.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/doubao/2026/03/38415958024990978__82668464.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/doubao/openmnemo/2026/03/38415958024990978__82668464.txt",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/doubao/openmnemo/2026/03/38415958024990978__82668464.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/doubao/openmnemo/2026/03/38415958024990978__82668464.json",
+  "message_count": 28,
+  "tool_event_count": 0,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}

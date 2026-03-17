@@ -1,0 +1,23 @@
+{
+  "client": "doubao",
+  "project": "openmnemo",
+  "session_id": "38411963055832066",
+  "title": "8.43 复制打开抖音，看看【天爱Talk的作品】看懂美国“斩杀线”的背后，资本、保险、药企究竟是谁...",
+  "started_at": "2026-03-16T15:39:38Z",
+  "imported_at": "2026-03-17T08:12:57Z",
+  "cwd": "",
+  "branch": "",
+  "raw_source_path": "D:/demo1/openmnemo/chat-memo_61_20260316154801/doubao_20260316153938_8_43_复制打开抖音_看看_天爱Talk的作品_看懂美国.txt",
+  "raw_sha256": "3265bbd5053dd1e4673cc645cd7bb9fedc9d272330bb7da95e45a12498f4b085",
+  "raw_upload_permission": "approved",
+  "repo_raw_path": "Memory/06_transcripts/raw/doubao/2026/03/38411963055832066__3265bbd5.txt",
+  "repo_clean_path": "Memory/06_transcripts/clean/doubao/2026/03/38411963055832066__3265bbd5.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/doubao/2026/03/38411963055832066__3265bbd5.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/doubao/openmnemo/2026/03/38411963055832066__3265bbd5.txt",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/doubao/openmnemo/2026/03/38411963055832066__3265bbd5.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/doubao/openmnemo/2026/03/38411963055832066__3265bbd5.json",
+  "message_count": 15,
+  "tool_event_count": 0,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}

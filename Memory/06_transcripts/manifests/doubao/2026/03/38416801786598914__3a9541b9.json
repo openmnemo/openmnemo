@@ -1,0 +1,23 @@
+{
+  "client": "doubao",
+  "project": "openmnemo",
+  "session_id": "38416801786598914",
+  "title": "嗯，你好是这样的，我想嗯，让你调研一下咱们现在目前的嗯，小说的创作平台然后有多少有多少个呢？嗯，然后...",
+  "started_at": "2026-03-16T10:22:17Z",
+  "imported_at": "2026-03-17T08:12:56Z",
+  "cwd": "",
+  "branch": "",
+  "raw_source_path": "D:/demo1/openmnemo/chat-memo_61_20260316154801/doubao_20260316102217_嗯_你好是这样的_我想嗯_让你调研一下咱们现在目前的嗯_小说.txt",
+  "raw_sha256": "3a9541b924389e7717f34b3d7eb6ef67477b33819942569a9f1769c903ae6ed2",
+  "raw_upload_permission": "approved",
+  "repo_raw_path": "Memory/06_transcripts/raw/doubao/2026/03/38416801786598914__3a9541b9.txt",
+  "repo_clean_path": "Memory/06_transcripts/clean/doubao/2026/03/38416801786598914__3a9541b9.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/doubao/2026/03/38416801786598914__3a9541b9.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/doubao/openmnemo/2026/03/38416801786598914__3a9541b9.txt",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/doubao/openmnemo/2026/03/38416801786598914__3a9541b9.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/doubao/openmnemo/2026/03/38416801786598914__3a9541b9.json",
+  "message_count": 28,
+  "tool_event_count": 0,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}

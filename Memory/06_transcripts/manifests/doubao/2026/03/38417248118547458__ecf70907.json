@@ -1,0 +1,23 @@
+{
+  "client": "doubao",
+  "project": "openmnemo",
+  "session_id": "38417248118547458",
+  "title": "是这样的，大家现在都用VS Code这种编码工具，或者命令行CLI这种编码工具进行一个。编程，用AI...",
+  "started_at": "2026-03-16T15:27:39Z",
+  "imported_at": "2026-03-17T08:12:57Z",
+  "cwd": "",
+  "branch": "",
+  "raw_source_path": "D:/demo1/openmnemo/chat-memo_61_20260316154801/doubao_20260316152739_是这样的_大家现在都用VS_Code这种编码工具_或者命令行.txt",
+  "raw_sha256": "ecf709071d6a3b0df9b86c3137912336f8865de82afd3a2a6532d4459b1a4a2a",
+  "raw_upload_permission": "approved",
+  "repo_raw_path": "Memory/06_transcripts/raw/doubao/2026/03/38417248118547458__ecf70907.txt",
+  "repo_clean_path": "Memory/06_transcripts/clean/doubao/2026/03/38417248118547458__ecf70907.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/doubao/2026/03/38417248118547458__ecf70907.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/doubao/openmnemo/2026/03/38417248118547458__ecf70907.txt",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/doubao/openmnemo/2026/03/38417248118547458__ecf70907.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/doubao/openmnemo/2026/03/38417248118547458__ecf70907.json",
+  "message_count": 4,
+  "tool_event_count": 0,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}
