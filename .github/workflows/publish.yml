@@ -55,6 +55,14 @@ jobs:
       - run: pnpm test
 
       - name: Publish all packages
-        run: pnpm publish -r --access public --no-git-checks --provenance
+        run: |
+          # Capture output; treat "already published" as success (idempotent re-run)
+          if ! pnpm publish -r --access public --no-git-checks --provenance 2>&1 | tee /tmp/publish.log; then
+            if grep -q "previously published versions" /tmp/publish.log; then
+              echo "ℹ️  All packages already published at this version — skipping"
+              exit 0
+            fi
+            exit 1
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
