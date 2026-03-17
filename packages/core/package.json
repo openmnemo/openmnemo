@@ -1,6 +1,6 @@
 {
   "name": "@openmnemo/core",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "description": "Transcript parsing, import, dedup, indexing, and recall for OpenMnemo",
   "main": "./dist/index.js",
