@@ -14,7 +14,7 @@ vi.mock('node:child_process', () => ({
   execFileSync: vi.fn(),
 }))
 
-vi.mock('../../../src/log.js', () => ({
+vi.mock('../../src/log.js', () => ({
   getLogger: () => logger,
 }))
 
@@ -126,7 +126,11 @@ describe('deployGithubPages', () => {
 
     expect(hasCommand(calls, ['status', '--short'])).toBe(true)
     expect(hasCommand(calls, ['push', 'origin', 'HEAD:gh-pages'])).toBe(false)
-    expect(hasCommand(calls, ['commit', '-m', 'chore: publish memorytree report'])).toBe(false)
+    expect(hasCommand(calls, [
+      '-c', 'user.name=MemoryTree',
+      '-c', 'user.email=memorytree@local.invalid',
+      'commit', '-m', 'chore: publish memorytree report',
+    ])).toBe(false)
   })
 
   it('does not throw when git commands fail', async () => {
@@ -142,6 +146,7 @@ describe('deployGithubPages', () => {
         cname: '',
       }),
     ).resolves.not.toThrow()
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Deploy failed'))
   })
 })
 

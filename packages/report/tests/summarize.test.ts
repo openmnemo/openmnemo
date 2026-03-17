@@ -132,7 +132,7 @@ describe('getSummary', () => {
   })
 
   it('prefers cache over API even when key is set', async () => {
-    process.env['ANTHROPIC_API_KEY'] = 'sk-test-key'
+    process.env['ANTHROPIC_API_KEY'] = 'test-api-key-not-real'
     writeCache('cachedwithkey', 'Cached!', tmpDir)
     const result = await getSummary('cachedwithkey', [], {
       cacheDir: tmpDir,

@@ -43,6 +43,7 @@ async function runBuildReport(config: Config, projectPath: string, projectName: 
     logger.info(`[${projectName}] Report generated at ${output}.`)
   } catch (err: unknown) {
     logger.error(`[${projectName}] Report generation failed: ${String(err)}`)
+    writeAlert(toPosixPath(projectPath), 'report_failed', `Report generation failed for ${projectName}: ${String(err)}`)
   }
 }
 

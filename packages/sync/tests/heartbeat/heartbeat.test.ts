@@ -90,7 +90,7 @@ describe('scanSensitive', () => {
     expect(alerts[0]!.type).toBe('sensitive_match')
   })
 
-  it('detects token pattern: token = abc123xyz', () => {
+  it('detects secret/token pattern: secret = my-secret-value', () => {
     const parsed = makeTranscript(['secret = my-secret-value'])
     scanSensitive(parsed, '/tmp/project')
 
@@ -109,7 +109,6 @@ describe('scanSensitive', () => {
   })
 
   it('detects GitHub PAT prefix: ghp_xxxx', () => {
-    clearAlerts()
     const parsed = makeTranscript(['Token ghp_abcdef1234567890extraextra'])
     scanSensitive(parsed, '/tmp/project')
 
@@ -119,7 +118,6 @@ describe('scanSensitive', () => {
   })
 
   it('detects Bearer token pattern', () => {
-    clearAlerts()
     const parsed = makeTranscript(['Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abcdefghij'])
     scanSensitive(parsed, '/tmp/project')
 
@@ -235,9 +233,15 @@ describe('processProject — generate_report', () => {
     try {
       await processProject(makeConfig(true), projectPath, 'test-project')
       expect(buildReportMock).toHaveBeenCalledOnce()
-      const opts = buildReportMock.mock.calls[0]?.[0] as { root: string; output: string }
-      expect(opts.root).toBe(projectPath)
-      expect(opts.output).toContain('07_reports')
+      const opts = buildReportMock.mock.calls[0]?.[0] as Record<string, unknown>
+      expect(opts['root']).toBe(projectPath)
+      expect(opts['output']).toContain('07_reports')
+      expect(opts['model']).toBe('claude-haiku-4-5-20251001')
+      expect(opts['locale']).toBe('en')
+      expect(opts['ghPagesBranch']).toBe('')
+      expect(opts['cname']).toBe('')
+      expect(opts['webhookUrl']).toBe('')
+      expect(opts['reportBaseUrl']).toBe('')
     } finally {
       rmSync(projectPath, { recursive: true, force: true })
     }

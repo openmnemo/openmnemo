@@ -1,14 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ClientRequest, IncomingMessage } from 'node:https'
 
-// Mock getLogger
-vi.mock('../../../src/log.js', () => ({
-  getLogger: () => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-    error: vi.fn(),
-  }),
+// Mock getLogger with a shared module-level object so tests can assert on it
+const logger = vi.hoisted(() => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  debug: vi.fn(),
+  error: vi.fn(),
+}))
+
+vi.mock('../../src/log.js', () => ({
+  getLogger: () => logger,
 }))
 
 // ---------------------------------------------------------------------------
@@ -198,6 +200,7 @@ describe('sendWebhook — network failure does not throw', () => {
     await expect(
       sendWebhook({ url: 'https://hooks.slack.com/services/test', sessionCount: 5 })
     ).resolves.not.toThrow()
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed to send notification'))
   })
 
   it('resolves on HTTP 4xx response', async () => {
