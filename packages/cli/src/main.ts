@@ -158,7 +158,7 @@ program
     process.exitCode = await cmdSearch({
       query: opts.query,
       globalRoot: opts.globalRoot ?? '',
-      limit: !Number.isNaN(n) && n > 0 ? n : 20,
+      limit: !Number.isNaN(n) && n >= 0 ? n : 20,
       format: opts.format,
     })
   })
