@@ -1,0 +1,23 @@
+{
+  "client": "claude",
+  "project": "openmnemo",
+  "session_id": "9fd19b89-2376-4c48-97bf-99f5ced0d910",
+  "title": "9fd19b89-2376-4c48-97bf-99f5ced0d910",
+  "started_at": "2026-03-18T14:17:13Z",
+  "imported_at": "2026-03-18T23:25:00Z",
+  "cwd": "D:\\demo1\\openmnemo",
+  "branch": "main",
+  "raw_source_path": "C:/Users/ai/.claude/projects/D--demo1-openmnemo/9fd19b89-2376-4c48-97bf-99f5ced0d910.jsonl",
+  "raw_sha256": "d17581ee4c3df5dcc03a526436a29cf8d81a170548019c8092c5be4489845e78",
+  "raw_upload_permission": "not-set",
+  "repo_raw_path": "Memory/06_transcripts/raw/claude/2026/03/9fd19b89-2376-4c48-97bf-99f5ced0d910__d17581ee.jsonl",
+  "repo_clean_path": "Memory/06_transcripts/clean/claude/2026/03/9fd19b89-2376-4c48-97bf-99f5ced0d910__d17581ee.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/claude/2026/03/9fd19b89-2376-4c48-97bf-99f5ced0d910__d17581ee.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/claude/openmnemo/2026/03/9fd19b89-2376-4c48-97bf-99f5ced0d910__d17581ee.jsonl",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/claude/openmnemo/2026/03/9fd19b89-2376-4c48-97bf-99f5ced0d910__d17581ee.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/claude/openmnemo/2026/03/9fd19b89-2376-4c48-97bf-99f5ced0d910__d17581ee.json",
+  "message_count": 66,
+  "tool_event_count": 164,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}
