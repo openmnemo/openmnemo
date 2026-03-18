@@ -7,6 +7,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import * as http from 'node:http'
+import * as net from 'node:net'
 
 import { cmdReportServe, createReportServer, type CmdReportBuildOptions } from '../../src/cmd-report.js'
 import { captureOutput } from '../helpers/capture.js'
@@ -160,5 +161,31 @@ describe('cmdReportServe', () => {
       }).on('error', reject)
     })
     expect(statusCode).toBe(404)
+  })
+
+  it('returns 403 for path traversal attempts', async () => {
+    server = createReportServer({ dir: tmpDir, port: 0 })
+    await new Promise<void>(resolve => server!.once('listening', resolve))
+
+    const { port } = server.address() as { port: number }
+
+    // Use raw TCP to bypass http.get's client-side path normalization
+    const rawGet = (rawPath: string) =>
+      new Promise<number>((resolve, reject) => {
+        const sock = net.createConnection(port, '127.0.0.1', () => {
+          sock.write(`GET ${rawPath} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n`)
+        })
+        let buf = ''
+        sock.on('data', (d) => { buf += d.toString() })
+        sock.on('end', () => {
+          const m = buf.match(/^HTTP\/1\.1 (\d+)/)
+          resolve(m ? Number(m[1]) : 0)
+        })
+        sock.on('error', reject)
+      })
+
+    expect(await rawGet('/../../../etc/passwd')).toBe(403)
+    expect(await rawGet('/..%2F..%2Fetc%2Fpasswd')).toBe(403)
+    expect(await rawGet('/%2e%2e/%2e%2e/etc/passwd')).toBe(403)
   })
 })
