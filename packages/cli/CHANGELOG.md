@@ -1,5 +1,15 @@
 # @openmnemo/cli
 
+## 0.3.1
+
+### Patch Changes
+
+- 0c6c387: Change default report serve port from 3000 to 10086 and improve help text with Quick Start usage
+  - @openmnemo/types@0.3.1
+  - @openmnemo/core@0.3.1
+  - @openmnemo/sync@0.3.1
+  - @openmnemo/report@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes
