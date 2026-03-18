@@ -1,5 +1,15 @@
 # @openmnemo/cli
 
+## 0.4.1
+
+### Patch Changes
+
+- 29c2890: Fix search --limit 0 returning 20 instead of unlimited. Fix release.yml concurrency and branch guard.
+  - @openmnemo/types@0.4.1
+  - @openmnemo/core@0.4.1
+  - @openmnemo/sync@0.4.1
+  - @openmnemo/report@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

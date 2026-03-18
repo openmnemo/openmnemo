@@ -1,5 +1,11 @@
 # @openmnemo/core
 
+## 0.4.1
+
+### Patch Changes
+
+- @openmnemo/types@0.4.1
+
 ## 0.4.0
 
 ### Patch Changes
