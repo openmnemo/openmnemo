@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
@@ -51,7 +52,7 @@ jobs:
           pnpm version-packages
           pnpm install --no-frozen-lockfile
           git add .changeset/ pnpm-lock.yaml packages/*/package.json packages/*/CHANGELOG.md
-          git commit -m "chore: release [skip ci]"
+          git commit -m "chore: release"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
