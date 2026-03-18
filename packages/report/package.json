@@ -1,6 +1,6 @@
 {
   "name": "@openmnemo/report",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "type": "module",
   "description": "OpenMnemo report generation — builds a static HTML dashboard from Memory/",
   "main": "./dist/index.js",

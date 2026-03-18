@@ -1,5 +1,18 @@
 # @openmnemo/cli
 
+## 0.4.0
+
+### Minor Changes
+
+- 2b35dfa: Add short aliases to all CLI commands and subcommands. Refactor release.yml to auto version+publish without creating PRs.
+
+### Patch Changes
+
+- @openmnemo/types@0.4.0
+- @openmnemo/core@0.4.0
+- @openmnemo/sync@0.4.0
+- @openmnemo/report@0.4.0
+
 ## 0.3.1
 
 ### Patch Changes

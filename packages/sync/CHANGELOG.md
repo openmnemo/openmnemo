@@ -1,5 +1,13 @@
 # @openmnemo/sync
 
+## 0.4.0
+
+### Patch Changes
+
+- @openmnemo/types@0.4.0
+- @openmnemo/core@0.4.0
+- @openmnemo/report@0.4.0
+
 ## 0.3.1
 
 ### Patch Changes
