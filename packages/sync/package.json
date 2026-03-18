@@ -1,6 +1,6 @@
 {
   "name": "@openmnemo/sync",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "type": "module",
   "description": "Heartbeat daemon, config management, and background sync for OpenMnemo",
   "main": "./dist/index.js",

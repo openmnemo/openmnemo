@@ -1,9 +1,7 @@
-name: Publish
+name: Publish (Manual)
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:   # manual trigger only — use release.yml for automated Changesets releases
 
 jobs:
   publish:
@@ -26,15 +24,10 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
-      - name: Verify tag matches package version
+      - name: Show package version being published
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
           PKG_VERSION=$(jq -r .version packages/cli/package.json)
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "❌ Tag $GITHUB_REF_NAME does not match package version $PKG_VERSION"
-            exit 1
-          fi
-          echo "✅ Tag matches package version: $PKG_VERSION"
+          echo "Publishing @openmnemo/* v${PKG_VERSION}"
 
       - name: Verify NPM_TOKEN is set
         run: |

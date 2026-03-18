@@ -16,10 +16,6 @@ export {
 export {
   main as heartbeatMain,
   runHeartbeat,
-  processProject,
-  scanSensitive,
-  gitCommitAndPush,
-  tryPush,
 } from './heartbeat.js'
 
 // Lock
