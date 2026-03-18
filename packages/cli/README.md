@@ -79,7 +79,7 @@ openmnemo report build --root . --output ./Memory/07_reports --locale zh-CN
 Serve a built report over HTTP.
 
 ```bash
-openmnemo report serve --dir ./Memory/07_reports --port 3000
+openmnemo report serve --dir ./Memory/07_reports --port 10086
 ```
 
 ### `openmnemo daemon`

@@ -150,10 +150,10 @@ Options:
 Serve the built report locally over HTTP.
 
 ```bash
-openmnemo report serve --dir ./Memory/07_reports --port 3000
+openmnemo report serve --dir ./Memory/07_reports --port 10086
 ```
 
-Then open `http://localhost:3000` in your browser.
+Then open `http://localhost:10086` in your browser.
 
 ### `openmnemo recall`
 

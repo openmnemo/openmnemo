@@ -234,11 +234,11 @@ daemon
 
 const report = program
   .command('report')
-  .description('Generate and serve MemoryTree HTML reports')
+  .description('Generate and serve MemoryTree HTML reports\n\nQuick start:\n  openmnemo report build --root . --no-ai\n  openmnemo report serve\n  Then open http://localhost:10086 in your browser.')
 
 report
   .command('build')
-  .description('Build a static HTML report from Memory/ directory')
+  .description('Build a static HTML report from Memory/ directory.\nOutput defaults to ./Memory/07_reports. Use "openmnemo report serve" to view.')
   .option('--root <path>', 'Repository root (contains Memory/)', '.')
   .option('--output <path>', 'Output directory', './Memory/07_reports')
   .option('--no-ai', 'Skip AI summarization')
@@ -259,14 +259,14 @@ report
 
 report
   .command('serve')
-  .description('Serve a built report over HTTP')
+  .description('Serve a built report over HTTP.\nOpen http://localhost:10086 (or custom --port) in your browser to view.')
   .option('--dir <path>', 'Report directory to serve', './Memory/07_reports')
-  .option('--port <n>', 'HTTP port', '3000')
+  .option('--port <n>', 'HTTP port', '10086')
   .action(async (opts) => {
     const { cmdReportServe } = await import('./cmd-report.js')
     process.exitCode = cmdReportServe({
       dir: opts.dir,
-      port: parseInt(opts.port, 10) || 3000,
+      port: parseInt(opts.port, 10) || 10086,
     })
   })
 

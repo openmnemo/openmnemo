@@ -58,7 +58,7 @@ The easiest way to use this package is via `@openmnemo/cli`:
 
 ```bash
 openmnemo report build --root . --output ./Memory/07_reports --no-ai
-openmnemo report serve --dir ./Memory/07_reports --port 3000
+openmnemo report serve --dir ./Memory/07_reports --port 10086
 ```
 
 ## GitHub Pages deployment
