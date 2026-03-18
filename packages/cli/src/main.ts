@@ -13,13 +13,14 @@ const program = new Command()
 
 program
   .name('openmnemo')
-  .description('OpenMnemo — cross-platform AI conversation memory manager')
+  .description('OpenMnemo — cross-platform AI conversation memory manager\n\nMost commands have short aliases (e.g. s=search, d=discover). Run <command> --help for details.')
   .version(cliVersion)
 
 // ── init ──────────────────────────────────────────────────────────────────
 
 program
   .command('init')
+  .alias('i')
   .description('Initialize a MemoryTree workspace in a repository')
   .option('--root <path>', 'Target repository root', '.')
   .option('--project-name <name>', 'Project name', 'this project')
@@ -47,6 +48,7 @@ program
 
 program
   .command('upgrade')
+  .alias('up')
   .description('Upgrade a repository to MemoryTree without overwriting existing policy')
   .option('--root <path>', 'Target repository root', '.')
   .option('--project-name <name>', 'Project name', 'this project')
@@ -72,6 +74,7 @@ program
 
 program
   .command('import')
+  .alias('imp')
   .description('Import one local transcript into MemoryTree archives')
   .requiredOption('--source <path>', 'Raw transcript source file path')
   .option('--root <path>', 'Target repository root', '.')
@@ -97,9 +100,10 @@ program
 
 program
   .command('discover')
+  .alias('d')
   .description('Discover and import local AI transcripts')
   .option('--root <path>', 'Target repository root', '.')
-  .option('--client <client>', 'Client filter: all, codex, claude, gemini', 'all')
+  .option('--client <client>', 'Client filter: all, codex, claude, gemini, doubao', 'all')
   .option('--scope <scope>', 'Scope: current-project or all-projects', 'all-projects')
   .option('--project-name <name>', 'Project label', '')
   .option('--global-root <path>', 'Override global transcript root')
@@ -124,6 +128,7 @@ program
 
 program
   .command('locale')
+  .alias('l')
   .description('Detect the effective locale for a repository')
   .option('--root <path>', 'Target repository root', '.')
   .option('--locale <locale>', 'Requested locale value', 'auto')
@@ -141,6 +146,7 @@ program
 
 program
   .command('search')
+  .alias('s')
   .description('Full-text search over the imported transcript index')
   .requiredOption('--query <text>', 'Search query')
   .option('--global-root <path>', 'Override global transcript root')
@@ -161,6 +167,7 @@ program
 
 program
   .command('recall')
+  .alias('r')
   .description('On-demand transcript sync and latest session recall')
   .option('--root <path>', 'Target repository root', '.')
   .option('--project-name <name>', 'Project label', '')
@@ -182,10 +189,12 @@ program
 
 const daemon = program
   .command('daemon')
+  .alias('dm')
   .description('Manage the MemoryTree heartbeat lifecycle')
 
 daemon
   .command('install')
+  .alias('ins')
   .description('Register heartbeat with the OS scheduler')
   .option('--interval <interval>', 'Override heartbeat interval (e.g., "5m")')
   .option('--auto-push <bool>', 'Override auto_push setting (true/false)')
@@ -199,6 +208,7 @@ daemon
 
 daemon
   .command('uninstall')
+  .alias('un')
   .description('Remove the heartbeat scheduled task')
   .action(async () => {
     const { cmdUninstall } = await import('./cmd-daemon.js')
@@ -207,6 +217,7 @@ daemon
 
 daemon
   .command('run-once')
+  .alias('ro')
   .description('Execute a single heartbeat cycle now')
   .action(async () => {
     const { cmdRunOnce } = await import('./cmd-daemon.js')
@@ -215,6 +226,7 @@ daemon
 
 daemon
   .command('watch')
+  .alias('w')
   .description('Continuous heartbeat loop (development only)')
   .option('--interval <interval>', 'Override interval')
   .action(async (opts) => {
@@ -224,6 +236,7 @@ daemon
 
 daemon
   .command('status')
+  .alias('st')
   .description('Show heartbeat registration and lock state')
   .action(async () => {
     const { cmdStatus } = await import('./cmd-daemon.js')
@@ -234,10 +247,12 @@ daemon
 
 const report = program
   .command('report')
+  .alias('rp')
   .description('Generate and serve MemoryTree HTML reports\n\nQuick start:\n  openmnemo report build --root . --no-ai\n  openmnemo report serve\n  Then open http://localhost:10086 in your browser.')
 
 report
   .command('build')
+  .alias('b')
   .description('Build a static HTML report from Memory/ directory.\nOutput defaults to ./Memory/07_reports. Use "openmnemo report serve" to view.')
   .option('--root <path>', 'Repository root (contains Memory/)', '.')
   .option('--output <path>', 'Output directory', './Memory/07_reports')
@@ -259,6 +274,7 @@ report
 
 report
   .command('serve')
+  .alias('sv')
   .description('Serve a built report over HTTP.\nOpen http://localhost:10086 (or custom --port) in your browser to view.')
   .option('--dir <path>', 'Report directory to serve', './Memory/07_reports')
   .option('--port <n>', 'HTTP port', '10086')
