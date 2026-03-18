@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import initSqlJs from 'sql.js'
 
-import { upsertSearchIndex } from '../../src/transcript/db.js'
+import { upsertSearchIndex, searchTranscripts, sanitizeFtsQuery } from '../../src/transcript/db.js'
 import type { ManifestEntry } from '@openmnemo/types'
 
 // ---------------------------------------------------------------------------
@@ -226,5 +226,125 @@ describe('upsertSearchIndex', () => {
     } finally {
       db.close()
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// searchTranscripts — FTS4 full-text search
+// ---------------------------------------------------------------------------
+
+describe('searchTranscripts', () => {
+  let tmpDir: string
+  let dbPath: string
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'db-fts-test-'))
+    dbPath = join(tmpDir, 'search.sqlite')
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('returns empty array when db does not exist', async () => {
+    const results = await searchTranscripts(dbPath, 'anything')
+    expect(results).toEqual([])
+  })
+
+  it('finds records matching query term in title', async () => {
+    await upsertSearchIndex(dbPath, makeManifest({ title: 'authentication bug', session_id: 'sess-auth' }))
+    await upsertSearchIndex(dbPath, makeManifest({ title: 'unrelated session', session_id: 'sess-other', raw_sha256: 'other' }))
+
+    const results = await searchTranscripts(dbPath, 'authentication')
+    expect(results).toHaveLength(1)
+    expect(results[0]!.session_id).toBe('sess-auth')
+  })
+
+  it('finds records matching query term in cwd', async () => {
+    await upsertSearchIndex(dbPath, makeManifest({ cwd: '/home/user/myproject', session_id: 'sess-cwd' }))
+    const results = await searchTranscripts(dbPath, 'myproject')
+    expect(results).toHaveLength(1)
+    expect(results[0]!.session_id).toBe('sess-cwd')
+  })
+
+  it('returns empty array when no records match', async () => {
+    await upsertSearchIndex(dbPath, makeManifest({ title: 'hello world' }))
+    const results = await searchTranscripts(dbPath, 'zzznomatch9999')
+    expect(results).toEqual([])
+  })
+
+  it('respects the limit parameter', async () => {
+    for (let i = 0; i < 5; i++) {
+      await upsertSearchIndex(dbPath, makeManifest({
+        session_id: `sess-${i}`,
+        raw_sha256: `hash-${i}`,
+        title: 'common keyword session',
+      }))
+    }
+    const results = await searchTranscripts(dbPath, 'common', 3)
+    expect(results.length).toBe(3)
+  })
+
+  it('result records have required SearchResult fields', async () => {
+    await upsertSearchIndex(dbPath, makeManifest({
+      title: 'feature implementation',
+      cwd: '/home/dev',
+      branch: 'feature/auth',
+      started_at: '2024-07-01T00:00:00Z',
+    }))
+    const results = await searchTranscripts(dbPath, 'feature')
+    expect(results).toHaveLength(1)
+    const r = results[0]!
+    expect(r.client).toBe('claude')
+    expect(r.project).toBe('my-project')
+    expect(r.title).toBe('feature implementation')
+    expect(r.cwd).toBe('/home/dev')
+    expect(r.branch).toBe('feature/auth')
+    expect(r.started_at).toBe('2024-07-01T00:00:00Z')
+    // rank field no longer exists — check there are exactly 7 keys
+    expect(Object.keys(r)).toEqual(['client', 'project', 'session_id', 'title', 'cwd', 'branch', 'started_at'])
+  })
+
+  it('returns empty array when sanitized query is empty (only special chars)', async () => {
+    await upsertSearchIndex(dbPath, makeManifest({ title: 'hello world' }))
+    const results = await searchTranscripts(dbPath, '"*()-')
+    expect(results).toEqual([])
+  })
+
+  it('does not throw on multi-word query', async () => {
+    await upsertSearchIndex(dbPath, makeManifest({ title: 'authentication bug fix', session_id: 'sess-multi' }))
+    const results = await searchTranscripts(dbPath, 'authentication bug')
+    expect(results).toHaveLength(1)
+    expect(results[0]!.session_id).toBe('sess-multi')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// sanitizeFtsQuery
+// ---------------------------------------------------------------------------
+
+describe('sanitizeFtsQuery', () => {
+  it('passes through plain words unchanged', () => {
+    expect(sanitizeFtsQuery('hello world')).toBe('hello world')
+  })
+
+  it('strips FTS4 metacharacters', () => {
+    expect(sanitizeFtsQuery('"auth* (bug)-')).toBe('auth bug')
+  })
+
+  it('collapses whitespace runs', () => {
+    expect(sanitizeFtsQuery('foo   bar')).toBe('foo bar')
+  })
+
+  it('trims leading and trailing whitespace', () => {
+    expect(sanitizeFtsQuery('  hello  ')).toBe('hello')
+  })
+
+  it('returns empty string when only metacharacters given', () => {
+    expect(sanitizeFtsQuery('"*()-^')).toBe('')
+  })
+
+  it('preserves Unicode letters', () => {
+    expect(sanitizeFtsQuery('café authentication')).toBe('café authentication')
   })
 })

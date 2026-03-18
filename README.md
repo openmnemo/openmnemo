@@ -163,6 +163,24 @@ Show the most recent session summary (useful in AI agent hooks).
 openmnemo recall --root . --project-name "my-project"
 ```
 
+### `openmnemo search`
+
+Full-text search over all imported transcripts (searches title, cwd, and branch).
+
+```bash
+openmnemo search --query "authentication bug"
+```
+
+Options:
+```
+--query <text>          Search query (required). Multiple words = AND match.
+--global-root <path>    Override global transcript root
+--limit <n>             Maximum results (default: 20)
+--format <format>       Output: text or json (default: text)
+```
+
+> **Note:** The query is split into terms by whitespace; all terms must appear in the document (AND logic). Example: `--query "auth bug"` matches sessions where both `auth` and `bug` appear in the title, cwd, or branch.
+
 ### `openmnemo upgrade`
 
 Upgrade an existing repository to the latest MemoryTree structure without overwriting your policy files.

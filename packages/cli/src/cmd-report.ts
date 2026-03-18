@@ -49,7 +49,7 @@ export interface CmdReportServeOptions {
   port: number
 }
 
-export function cmdReportServe(opts: CmdReportServeOptions): number {
+export function createReportServer(opts: CmdReportServeOptions): import('node:http').Server {
   const root = resolve(opts.dir)
   const port = opts.port
 
@@ -116,5 +116,10 @@ export function cmdReportServe(opts: CmdReportServeOptions): number {
     console.log('Press Ctrl+C to stop.')
   })
 
+  return server
+}
+
+export function cmdReportServe(opts: CmdReportServeOptions): number {
+  createReportServer(opts)
   return 0
 }

@@ -56,7 +56,7 @@ export {
 } from './transcript/parse.js'
 
 // Database
-export { upsertSearchIndex, searchTranscripts } from './transcript/db.js'
+export { upsertSearchIndex, searchTranscripts, sanitizeFtsQuery } from './transcript/db.js'
 export type { SearchResult } from './transcript/db.js'
 
 // Discovery

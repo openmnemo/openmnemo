@@ -137,6 +137,26 @@ program
     })
   })
 
+// ── search ────────────────────────────────────────────────────────────────
+
+program
+  .command('search')
+  .description('Full-text search over the imported transcript index')
+  .requiredOption('--query <text>', 'Search query')
+  .option('--global-root <path>', 'Override global transcript root')
+  .option('--limit <n>', 'Maximum results to return (0 = no limit)', '20')
+  .option('--format <format>', 'Output format: text or json', 'text')
+  .action(async (opts) => {
+    const { cmdSearch } = await import('./cmd-search.js')
+    const n = parseInt(opts.limit, 10)
+    process.exitCode = await cmdSearch({
+      query: opts.query,
+      globalRoot: opts.globalRoot ?? '',
+      limit: !Number.isNaN(n) && n > 0 ? n : 20,
+      format: opts.format,
+    })
+  })
+
 // ── recall ────────────────────────────────────────────────────────────────
 
 program
