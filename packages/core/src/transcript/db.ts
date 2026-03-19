@@ -38,6 +38,7 @@ const DATA_COLUMNS = [
   'raw_upload_permission',
   'global_raw_path',
   'global_clean_path',
+  'global_manifest_path',
   'repo_raw_path',
   'repo_clean_path',
   'repo_manifest_path',
@@ -68,6 +69,7 @@ const CREATE_TABLE_SQL = `
     raw_upload_permission TEXT  NOT NULL,
     global_raw_path     TEXT    NOT NULL,
     global_clean_path   TEXT    NOT NULL,
+    global_manifest_path TEXT   NOT NULL DEFAULT '',
     repo_raw_path       TEXT    NOT NULL,
     repo_clean_path     TEXT    NOT NULL,
     repo_manifest_path  TEXT    NOT NULL,
@@ -154,7 +156,7 @@ function openDb(dbPath: string): InstanceType<typeof Database> {
  * Ignores "duplicate column name" errors (idempotent).
  */
 function migrateSchema(db: InstanceType<typeof Database>): void {
-  for (const col of ['content', 'commit_layer']) {
+  for (const col of ['global_manifest_path', 'content', 'commit_layer']) {
     try {
       db.exec(`ALTER TABLE transcripts ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`)
     } catch (e: unknown) {
@@ -190,10 +192,12 @@ function migrateFts(db: InstanceType<typeof Database>): void {
 export function initSchema(dbPath: string): void {
   const db = openDb(dbPath)
   try {
-    db.exec(CREATE_TABLE_SQL)
-    migrateSchema(db)
-    db.exec(CREATE_FTS_SQL)
-    migrateFts(db)
+    db.transaction(() => {
+      db.exec(CREATE_TABLE_SQL)
+      migrateSchema(db)
+      db.exec(CREATE_FTS_SQL)
+      migrateFts(db)
+    })()
   } finally {
     db.close()
   }
@@ -236,9 +240,12 @@ export function searchTranscripts(
   }
 }
 
+const FTS_COLUMNS = new Set(['title', 'cwd', 'branch', 'content', 'commit_layer'])
+
 /**
  * Search restricted to specific FTS columns using FTS4 column filter syntax.
  * e.g. columns=['commit_layer'] → MATCH 'commit_layer:term'
+ * Column names are validated against the known FTS column set.
  */
 export function searchTranscriptsByColumns(
   dbPath: string,
@@ -247,10 +254,12 @@ export function searchTranscriptsByColumns(
   limit = 20,
 ): SearchResult[] {
   const sanitized = sanitizeFtsQuery(query)
-  if (!sanitized || columns.length === 0) return []
+  if (!sanitized) return []
+  const validColumns = columns.filter((c) => FTS_COLUMNS.has(c))
+  if (validColumns.length === 0) return []
   if (!existsSync(dbPath)) return []
 
-  const columnQuery = columns.map((col) => `${col}:${sanitized}`).join(' OR ')
+  const columnQuery = validColumns.map((col) => `${col}:${sanitized}`).join(' OR ')
   const db = new Database(dbPath, { readonly: true })
   try {
     return db.prepare(SEARCH_SQL).all(columnQuery, limit) as SearchResult[]
@@ -271,10 +280,12 @@ export function upsertSearchIndex(
 ): void {
   const db = openDb(dbPath)
   try {
-    db.exec(CREATE_TABLE_SQL)
-    migrateSchema(db)
-    db.exec(CREATE_FTS_SQL)
-    migrateFts(db)
+    db.transaction(() => {
+      db.exec(CREATE_TABLE_SQL)
+      migrateSchema(db)
+      db.exec(CREATE_FTS_SQL)
+      migrateFts(db)
+    })()
 
     const record: Record<string, unknown> = { ...manifest }
     const params: (string | number)[] = ALL_COLUMNS.map((col) => {

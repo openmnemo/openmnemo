@@ -289,6 +289,10 @@ export interface SearchRecallResult {
  *   Layer 3 — content (full clean markdown text)
  *
  * Returns results from the first layer that has matches.
+ *
+ * NOTE: Layer 1 returns empty results until task 1.2 populates commit_layer
+ * during import. This is intentional — the layer structure is in place for
+ * when commit data becomes available.
  */
 export function searchRecall(
   globalRoot: string,
