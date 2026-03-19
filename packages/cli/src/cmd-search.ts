@@ -1,10 +1,11 @@
 /**
  * CLI: openmnemo search — full-text search over the transcript index.
+ * Uses three-layer search: commit_layer → metadata → content.
  */
 
-import { join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 
-import { defaultGlobalTranscriptRoot, searchTranscripts } from '@openmnemo/core'
+import { defaultGlobalTranscriptRoot, searchRecall } from '@openmnemo/core'
 import type { SearchResult } from '@openmnemo/core'
 
 export interface SearchOptions {
@@ -22,11 +23,13 @@ export async function cmdSearch(options: SearchOptions): Promise<number> {
   }
 
   const globalRoot = options.globalRoot ? resolve(options.globalRoot) : defaultGlobalTranscriptRoot()
-  const dbPath = join(globalRoot, 'index', 'search.sqlite')
 
+  let layer: 1 | 2 | 3
   let results: SearchResult[]
   try {
-    results = await searchTranscripts(dbPath, query, options.limit)
+    const result = searchRecall(globalRoot, query, options.limit)
+    layer = result.layer
+    results = result.results
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     process.stderr.write(`search error: ${msg}\n`)
@@ -34,15 +37,15 @@ export async function cmdSearch(options: SearchOptions): Promise<number> {
   }
 
   if (options.format === 'json') {
-    process.stdout.write(JSON.stringify({ query, results, count: results.length }) + '\n')
+    process.stdout.write(JSON.stringify({ query, layer, results, count: results.length }) + '\n')
   } else {
-    process.stdout.write(formatSearchText(query, results) + '\n')
+    process.stdout.write(formatSearchText(query, layer, results) + '\n')
   }
   return 0
 }
 
-function formatSearchText(query: string, results: SearchResult[]): string {
-  const lines: string[] = [`query: ${query}`, `count: ${results.length}`]
+function formatSearchText(query: string, layer: number, results: SearchResult[]): string {
+  const lines: string[] = [`query: ${query}`, `layer: ${layer}`, `count: ${results.length}`]
   if (results.length > 0) {
     lines.push('results:')
     for (const r of results) {

@@ -44,6 +44,8 @@ const DATA_COLUMNS = [
   'repo_manifest_path',
   'message_count',
   'tool_event_count',
+  'cleaning_mode',
+  'repo_mirror_enabled',
   'content',
   'commit_layer',
 ] as const
@@ -75,6 +77,8 @@ const CREATE_TABLE_SQL = `
     repo_manifest_path  TEXT    NOT NULL,
     message_count       INTEGER NOT NULL,
     tool_event_count    INTEGER NOT NULL,
+    cleaning_mode       TEXT    NOT NULL DEFAULT '',
+    repo_mirror_enabled TEXT    NOT NULL DEFAULT '',
     content             TEXT    NOT NULL DEFAULT '',
     commit_layer        TEXT    NOT NULL DEFAULT '',
     PRIMARY KEY (client, project, session_id, raw_sha256)
@@ -156,7 +160,7 @@ function openDb(dbPath: string): InstanceType<typeof Database> {
  * Ignores "duplicate column name" errors (idempotent).
  */
 function migrateSchema(db: InstanceType<typeof Database>): void {
-  for (const col of ['global_manifest_path', 'content', 'commit_layer']) {
+  for (const col of ['global_manifest_path', 'cleaning_mode', 'repo_mirror_enabled', 'content', 'commit_layer']) {
     try {
       db.exec(`ALTER TABLE transcripts ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`)
     } catch (e: unknown) {

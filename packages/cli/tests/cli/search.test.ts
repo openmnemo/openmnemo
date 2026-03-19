@@ -51,7 +51,7 @@ describe('cmdSearch', () => {
       const original = await importOriginal<typeof import('@openmnemo/core')>()
       return {
         ...original,
-        searchTranscripts: async () => MOCK_RESULTS,
+        searchRecall: () => ({ layer: 2, results: MOCK_RESULTS }),
       }
     })
 
@@ -67,6 +67,7 @@ describe('cmdSearch', () => {
       expect(code).toBe(0)
       const out = cap.out()
       expect(out).toContain('query: authentication')
+      expect(out).toContain('layer: 2')
       expect(out).toContain('count: 1')
       expect(out).toContain('[claude] myproject/sess-001')
       expect(out).toContain('title: Authentication bug')
@@ -81,7 +82,7 @@ describe('cmdSearch', () => {
       const original = await importOriginal<typeof import('@openmnemo/core')>()
       return {
         ...original,
-        searchTranscripts: async () => MOCK_RESULTS,
+        searchRecall: () => ({ layer: 2, results: MOCK_RESULTS }),
       }
     })
 
@@ -97,6 +98,7 @@ describe('cmdSearch', () => {
       expect(code).toBe(0)
       const parsed = JSON.parse(cap.out())
       expect(parsed.query).toBe('auth')
+      expect(parsed.layer).toBe(2)
       expect(parsed.count).toBe(1)
       expect(parsed.results[0].session_id).toBe('sess-001')
     } finally {
@@ -109,7 +111,7 @@ describe('cmdSearch', () => {
       const original = await importOriginal<typeof import('@openmnemo/core')>()
       return {
         ...original,
-        searchTranscripts: async () => [],
+        searchRecall: () => ({ layer: 3, results: [] }),
       }
     })
 
@@ -129,12 +131,12 @@ describe('cmdSearch', () => {
     }
   })
 
-  it('returns 1 when searchTranscripts throws', async () => {
+  it('returns 1 when searchRecall throws', async () => {
     vi.doMock('@openmnemo/core', async (importOriginal) => {
       const original = await importOriginal<typeof import('@openmnemo/core')>()
       return {
         ...original,
-        searchTranscripts: async () => { throw new Error('db error') },
+        searchRecall: () => { throw new Error('db error') },
       }
     })
 
