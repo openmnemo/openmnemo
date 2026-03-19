@@ -95,7 +95,7 @@ export type { RecallResult, SearchRecallResult } from './recall/recall.js'
 
 // Utils
 export { toPosixPath } from './utils/path.js'
-export { execCommand, git } from './utils/exec.js'
+export { execCommand, git, buildCommitLayer } from './utils/exec.js'
 
 // Storage adapters
 export type { StorageAdapter } from './storage/adapter.js'

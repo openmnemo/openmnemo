@@ -8,6 +8,7 @@ import { dirname, extname, join, relative } from 'node:path'
 
 import type { ManifestEntry, ParsedTranscript } from '@openmnemo/types'
 import { toPosixPath } from '../utils/path.js'
+import { buildCommitLayer } from '../utils/exec.js'
 import {
   loadJson,
   normalizeTimestamp,
@@ -104,7 +105,8 @@ export async function importTranscript(
   }
   try {
     const contentText = readFileSync(globalCleanPath, 'utf-8')
-    upsertSearchIndex(globalDbPath, { ...manifest, content: contentText, commit_layer: '' })
+    const commitLayer = buildCommitLayer(parsed.cwd)
+    upsertSearchIndex(globalDbPath, { ...manifest, content: contentText, commit_layer: commitLayer })
   } catch {
     // Non-fatal: search index failure should not abort the import
   }
