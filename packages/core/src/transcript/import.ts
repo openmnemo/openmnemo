@@ -102,7 +102,11 @@ export async function importTranscript(
   if (appendToEventLog) {
     appendJsonl(globalEventLogPath, manifestRecord)
   }
-  upsertSearchIndex(globalDbPath, manifest)
+  try {
+    upsertSearchIndex(globalDbPath, manifest)
+  } catch {
+    // Non-fatal: search index failure should not abort the import
+  }
 
   return manifest
 }

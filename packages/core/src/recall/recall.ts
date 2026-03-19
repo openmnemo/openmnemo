@@ -160,7 +160,8 @@ export function findLatestSession(
     return findLatestFromJsonl(globalRoot, root, repoSlug, activationTime)
   }
 
-  return null
+  // No matching row in DB — fall back to JSONL index
+  return findLatestFromJsonl(globalRoot, root, repoSlug, activationTime)
 }
 
 // ---------------------------------------------------------------------------

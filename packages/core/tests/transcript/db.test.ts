@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import Database from 'better-sqlite3'
 
-import { upsertSearchIndex, searchTranscripts, sanitizeFtsQuery } from '../../src/transcript/db.js'
+import { upsertSearchIndex, searchTranscripts, sanitizeFtsQuery, rebuildFtsIndex, initSchema } from '../../src/transcript/db.js'
 import type { ManifestEntry } from '@openmnemo/types'
 
 // ---------------------------------------------------------------------------
@@ -263,6 +263,11 @@ describe('sanitizeFtsQuery', () => {
     expect(sanitizeFtsQuery('"auth* (bug)-')).toBe('auth bug')
   })
 
+  it('strips single quotes to prevent FTS4 MATCH parse errors', () => {
+    expect(sanitizeFtsQuery("it's broken")).toBe('it s broken')
+    expect(sanitizeFtsQuery("O'Brien")).toBe('O Brien')
+  })
+
   it('collapses whitespace runs', () => {
     expect(sanitizeFtsQuery('foo   bar')).toBe('foo bar')
   })
@@ -277,5 +282,100 @@ describe('sanitizeFtsQuery', () => {
 
   it('preserves Unicode letters', () => {
     expect(sanitizeFtsQuery('café authentication')).toBe('café authentication')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// initSchema + rebuildFtsIndex
+// ---------------------------------------------------------------------------
+
+describe('initSchema', () => {
+  let tmpDir: string
+  let dbPath: string
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'db-schema-test-'))
+    dbPath = join(tmpDir, 'schema.sqlite')
+  })
+  afterEach(() => { rmSync(tmpDir, { recursive: true, force: true }) })
+
+  it('creates transcripts table and FTS table without inserting data', () => {
+    initSchema(dbPath)
+    expect(existsSync(dbPath)).toBe(true)
+    const db = new Database(dbPath, { readonly: true })
+    try {
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' OR type='shadow'").all() as { name: string }[]
+      const names = tables.map(t => t.name)
+      expect(names).toContain('transcripts')
+      expect(names).toContain('transcripts_fts')
+    } finally {
+      db.close()
+    }
+  })
+
+  it('is idempotent — calling twice does not throw', () => {
+    expect(() => { initSchema(dbPath); initSchema(dbPath) }).not.toThrow()
+  })
+})
+
+describe('rebuildFtsIndex', () => {
+  let tmpDir: string
+  let dbPath: string
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'db-rebuild-test-'))
+    dbPath = join(tmpDir, 'rebuild.sqlite')
+  })
+  afterEach(() => { rmSync(tmpDir, { recursive: true, force: true }) })
+
+  it('makes records searchable after upsert without per-row rebuild', () => {
+    // upsertSearchIndex still rebuilds per-row by default, so test the
+    // explicit rebuildFtsIndex path by using initSchema + raw insert
+    initSchema(dbPath)
+    const db = new Database(dbPath)
+    try {
+      db.prepare(`INSERT INTO transcripts (${['client','project','session_id','raw_sha256','title','started_at','imported_at','cwd','branch','raw_source_path','raw_upload_permission','global_raw_path','global_clean_path','repo_raw_path','repo_clean_path','repo_manifest_path','message_count','tool_event_count'].join(',')}) VALUES (${Array(18).fill('?').join(',')})`)
+        .run('claude','proj','s1','h1','rebuild test','2024-01-01T00:00:00Z','2024-01-01T00:00:00Z','/cwd','main','/raw','none','/graw','/gclean','','','',1,0)
+    } finally {
+      db.close()
+    }
+    // Before rebuild, search returns nothing
+    expect(searchTranscripts(dbPath, 'rebuild')).toEqual([])
+    // After rebuild, search finds the row
+    rebuildFtsIndex(dbPath)
+    const results = searchTranscripts(dbPath, 'rebuild')
+    expect(results).toHaveLength(1)
+    expect(results[0]!.session_id).toBe('s1')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// searchTranscripts — error resilience
+// ---------------------------------------------------------------------------
+
+describe('searchTranscripts error resilience', () => {
+  let tmpDir: string
+  let dbPath: string
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'db-err-test-'))
+    dbPath = join(tmpDir, 'err.sqlite')
+  })
+  afterEach(() => { rmSync(tmpDir, { recursive: true, force: true }) })
+
+  it('returns empty array when FTS table is missing (legacy DB with only transcripts table)', () => {
+    // Create DB with transcripts table but no FTS table
+    const db = new Database(dbPath)
+    db.exec(`CREATE TABLE transcripts (
+      client TEXT, project TEXT, session_id TEXT, raw_sha256 TEXT,
+      title TEXT, started_at TEXT, imported_at TEXT, cwd TEXT, branch TEXT,
+      raw_source_path TEXT, raw_upload_permission TEXT, global_raw_path TEXT,
+      global_clean_path TEXT, repo_raw_path TEXT, repo_clean_path TEXT,
+      repo_manifest_path TEXT, message_count INTEGER, tool_event_count INTEGER,
+      PRIMARY KEY (client, project, session_id, raw_sha256)
+    )`)
+    db.close()
+    // searchTranscripts should not throw — returns empty
+    expect(searchTranscripts(dbPath, 'anything')).toEqual([])
   })
 })
