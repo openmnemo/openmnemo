@@ -1,0 +1,23 @@
+{
+  "client": "codex",
+  "project": "openmnemo",
+  "session_id": "019d0489-5b3b-7190-9ac8-c828739c764e",
+  "title": "rollout-2026-03-19T13-20-03-019d0489-5b3b-7190-9ac8-c828739c764e",
+  "started_at": "2026-03-19T05:20:03Z",
+  "imported_at": "2026-03-19T06:11:01Z",
+  "cwd": "D:\\demo1\\openmnemo",
+  "branch": "main",
+  "raw_source_path": "C:/Users/ai/.codex/sessions/2026/03/19/rollout-2026-03-19T13-20-03-019d0489-5b3b-7190-9ac8-c828739c764e.jsonl",
+  "raw_sha256": "8087e8db354730474d2f9a6e98036737271862f8dcc4db7c6a2617f9ca6f7792",
+  "raw_upload_permission": "not-set",
+  "repo_raw_path": "Memory/06_transcripts/raw/codex/2026/03/019d0489-5b3b-7190-9ac8-c828739c764e__8087e8db.jsonl",
+  "repo_clean_path": "Memory/06_transcripts/clean/codex/2026/03/019d0489-5b3b-7190-9ac8-c828739c764e__8087e8db.md",
+  "repo_manifest_path": "Memory/06_transcripts/manifests/codex/2026/03/019d0489-5b3b-7190-9ac8-c828739c764e__8087e8db.json",
+  "global_raw_path": "C:/Users/ai/.memorytree/transcripts/raw/codex/openmnemo/2026/03/019d0489-5b3b-7190-9ac8-c828739c764e__8087e8db.jsonl",
+  "global_clean_path": "C:/Users/ai/.memorytree/transcripts/clean/codex/openmnemo/2026/03/019d0489-5b3b-7190-9ac8-c828739c764e__8087e8db.md",
+  "global_manifest_path": "C:/Users/ai/.memorytree/transcripts/index/manifests/codex/openmnemo/2026/03/019d0489-5b3b-7190-9ac8-c828739c764e__8087e8db.json",
+  "message_count": 24,
+  "tool_event_count": 92,
+  "cleaning_mode": "deterministic-code",
+  "repo_mirror_enabled": true
+}
