@@ -102,7 +102,7 @@ export async function importTranscript(
   if (appendToEventLog) {
     appendJsonl(globalEventLogPath, manifestRecord)
   }
-  await upsertSearchIndex(globalDbPath, manifest)
+  upsertSearchIndex(globalDbPath, manifest)
 
   return manifest
 }

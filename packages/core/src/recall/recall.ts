@@ -6,7 +6,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 
-import initSqlJs from 'sql.js'
+import Database from 'better-sqlite3'
 
 import { slugify } from '../transcript/common.js'
 import { defaultGlobalTranscriptRoot, discoverSourceFiles, transcriptMatchesRepo } from '../transcript/discover.js'
@@ -53,7 +53,7 @@ export async function recall(
 
   const imported = await syncCurrentProject(resolvedRoot, repoSlug, globalRoot)
 
-  const session = await findLatestSession(globalRoot, resolvedRoot, repoSlug, effectiveActivation)
+  const session = findLatestSession(globalRoot, resolvedRoot, repoSlug, effectiveActivation)
 
   if (session === null) {
     return {
@@ -127,43 +127,32 @@ export async function syncCurrentProject(root: string, repoSlug: string, globalR
 // Find latest session
 // ---------------------------------------------------------------------------
 
-export async function findLatestSession(
+export function findLatestSession(
   globalRoot: string,
   root: string,
   repoSlug: string,
   activationTime: string,
-): Promise<Record<string, unknown> | null> {
+): Record<string, unknown> | null {
   const dbPath = join(globalRoot, 'index', 'search.sqlite')
   if (!existsSync(dbPath)) {
     return findLatestFromJsonl(globalRoot, root, repoSlug, activationTime)
   }
 
   try {
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
+    const db = new Database(dbPath, { readonly: true })
     try {
-      const stmt = db.prepare(
-        'SELECT * FROM transcripts WHERE started_at < ? ORDER BY started_at DESC LIMIT 20',
-      )
-      stmt.bind([activationTime])
+      const rows = db
+        .prepare('SELECT * FROM transcripts WHERE started_at < ? ORDER BY started_at DESC LIMIT 20')
+        .all(activationTime) as Record<string, unknown>[]
 
       const resolvedRoot = toPosixPath(resolve(root)).toLowerCase()
-      const columns = stmt.getColumnNames()
-
-      while (stmt.step()) {
-        const values = stmt.get()
-        const row: Record<string, unknown> = {}
-        for (let i = 0; i < columns.length; i++) {
-          row[columns[i]!] = values[i]
-        }
+      for (const row of rows) {
         const cwd = String(row['cwd'] ?? '')
         const project = String(row['project'] ?? '')
         if (cwdMatches(cwd, resolvedRoot) || project === repoSlug) {
-          stmt.free()
           return row
         }
       }
-      stmt.free()
     } finally {
       db.close()
     }

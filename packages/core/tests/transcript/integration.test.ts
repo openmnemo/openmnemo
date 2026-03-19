@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import initSqlJs from 'sql.js'
+import Database from 'better-sqlite3'
 
 import {
   parseCodexTranscript,
@@ -91,11 +91,10 @@ describe('integration: parse → import → verify', () => {
     // 9. Verify SQLite index updated
     const dbPath = join(globalRoot, 'index', 'search.sqlite')
     expect(existsSync(dbPath)).toBe(true)
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
-    const rows = db.exec('SELECT client, project, session_id FROM transcripts')
+    const db = new Database(dbPath, { readonly: true })
+    const rows = db.prepare('SELECT client, project, session_id FROM transcripts').all() as Record<string, unknown>[]
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.values).toEqual([['codex', 'myproject', 'sess-001']])
+    expect([rows[0]!['client'], rows[0]!['project'], rows[0]!['session_id']]).toEqual(['codex', 'myproject', 'sess-001'])
     db.close()
 
     // 10. Verify event log written
@@ -212,11 +211,10 @@ describe('integration: parse → import → verify', () => {
     // 7. Verify SQLite index row (client, project, session_id)
     const dbPath = join(globalRoot, 'index', 'search.sqlite')
     expect(existsSync(dbPath)).toBe(true)
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
-    const rows = db.exec("SELECT client, project, session_id FROM transcripts WHERE client='gemini'")
+    const db = new Database(dbPath, { readonly: true })
+    const rows = db.prepare("SELECT client, project, session_id FROM transcripts WHERE client='gemini'").all() as Record<string, unknown>[]
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.values[0]).toEqual(['gemini', 'myproject', 'gemini-sess-001'])
+    expect([rows[0]!['client'], rows[0]!['project'], rows[0]!['session_id']]).toEqual(['gemini', 'myproject', 'gemini-sess-001'])
     db.close()
 
     // 8. Verify event log
@@ -320,11 +318,10 @@ describe('integration: parse → import → verify', () => {
     // 7. Verify SQLite index row (Chinese title stored correctly)
     const dbPath = join(globalRoot, 'index', 'search.sqlite')
     expect(existsSync(dbPath)).toBe(true)
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
-    const rows = db.exec("SELECT client, session_id, title FROM transcripts WHERE client='doubao'")
+    const db = new Database(dbPath, { readonly: true })
+    const rows = db.prepare("SELECT client, session_id, title FROM transcripts WHERE client='doubao'").all() as Record<string, unknown>[]
     expect(rows).toHaveLength(1)
-    expect(rows[0]!.values[0]).toEqual(['doubao', '38416801786598914', 'TypeScript 最佳实践'])
+    expect([rows[0]!['client'], rows[0]!['session_id'], rows[0]!['title']]).toEqual(['doubao', '38416801786598914', 'TypeScript 最佳实践'])
     db.close()
 
     // 8. Verify event log

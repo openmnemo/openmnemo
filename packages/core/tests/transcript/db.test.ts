@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, existsSync } from 'node:fs'
-import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import initSqlJs from 'sql.js'
+import Database from 'better-sqlite3'
 
 import { upsertSearchIndex, searchTranscripts, sanitizeFtsQuery } from '../../src/transcript/db.js'
 import type { ManifestEntry } from '@openmnemo/types'
@@ -53,97 +52,56 @@ describe('upsertSearchIndex', () => {
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  // -----------------------------------------------------------------------
-  // 1. Creates a new database and inserts a record
-  // -----------------------------------------------------------------------
-  it('creates a new db file and inserts one record', async () => {
+  it('creates a new db file and inserts one record', () => {
     expect(existsSync(dbPath)).toBe(false)
 
     const manifest = makeManifest()
-    await upsertSearchIndex(dbPath, manifest)
+    upsertSearchIndex(dbPath, manifest)
 
     expect(existsSync(dbPath)).toBe(true)
 
-    // Read back with sql.js to verify
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
+    const db = new Database(dbPath, { readonly: true })
     try {
-      const rows = db.exec('SELECT * FROM transcripts')
-      expect(rows).toHaveLength(1)
-      const columns = rows[0]!.columns
-      const values = rows[0]!.values
-      expect(values).toHaveLength(1)
-
-      // Check a few key fields via column index
-      const clientIdx = columns.indexOf('client')
-      const titleIdx = columns.indexOf('title')
-      const msgIdx = columns.indexOf('message_count')
-      const toolIdx = columns.indexOf('tool_event_count')
-
-      expect(values[0]![clientIdx]).toBe('claude')
-      expect(values[0]![titleIdx]).toBe('Test Session')
-      expect(values[0]![msgIdx]).toBe(42)
-      expect(values[0]![toolIdx]).toBe(7)
+      const row = db.prepare('SELECT * FROM transcripts').get() as Record<string, unknown>
+      expect(row['client']).toBe('claude')
+      expect(row['title']).toBe('Test Session')
+      expect(row['message_count']).toBe(42)
+      expect(row['tool_event_count']).toBe(7)
     } finally {
       db.close()
     }
   })
 
-  // -----------------------------------------------------------------------
-  // 2. Upsert — insert then update same PK, verify updated fields
-  // -----------------------------------------------------------------------
-  it('updates existing record on conflict (upsert)', async () => {
-    const manifest = makeManifest()
-    await upsertSearchIndex(dbPath, manifest)
-
-    // Update non-PK fields
-    const updated = makeManifest({
+  it('updates existing record on conflict (upsert)', () => {
+    upsertSearchIndex(dbPath, makeManifest())
+    upsertSearchIndex(dbPath, makeManifest({
       title: 'Updated Title',
       message_count: 100,
       tool_event_count: 20,
       branch: 'feature-x',
-    })
-    await upsertSearchIndex(dbPath, updated)
+    }))
 
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
+    const db = new Database(dbPath, { readonly: true })
     try {
-      const rows = db.exec('SELECT * FROM transcripts')
+      const rows = db.prepare('SELECT * FROM transcripts').all() as Record<string, unknown>[]
       expect(rows).toHaveLength(1)
-      // Still only 1 row (upsert, not duplicate)
-      expect(rows[0]!.values).toHaveLength(1)
-
-      const columns = rows[0]!.columns
-      const row = rows[0]!.values[0]!
-      const titleIdx = columns.indexOf('title')
-      const msgIdx = columns.indexOf('message_count')
-      const toolIdx = columns.indexOf('tool_event_count')
-      const branchIdx = columns.indexOf('branch')
-
-      expect(row[titleIdx]).toBe('Updated Title')
-      expect(row[msgIdx]).toBe(100)
-      expect(row[toolIdx]).toBe(20)
-      expect(row[branchIdx]).toBe('feature-x')
+      expect(rows[0]!['title']).toBe('Updated Title')
+      expect(rows[0]!['message_count']).toBe(100)
+      expect(rows[0]!['tool_event_count']).toBe(20)
+      expect(rows[0]!['branch']).toBe('feature-x')
     } finally {
       db.close()
     }
   })
 
-  // -----------------------------------------------------------------------
-  // 3. Table schema has 18 columns
-  // -----------------------------------------------------------------------
-  it('creates table with 18 columns', async () => {
-    await upsertSearchIndex(dbPath, makeManifest())
+  it('creates table with 18 columns', () => {
+    upsertSearchIndex(dbPath, makeManifest())
 
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
+    const db = new Database(dbPath, { readonly: true })
     try {
-      const info = db.exec('PRAGMA table_info(transcripts)')
-      expect(info).toHaveLength(1)
-      expect(info[0]!.values).toHaveLength(18)
-
-      // Verify column names
-      const columnNames = info[0]!.values.map((row) => row[1])
+      const info = db.prepare('PRAGMA table_info(transcripts)').all() as Record<string, unknown>[]
+      expect(info).toHaveLength(18)
+      const columnNames = info.map((r) => r['name'])
       expect(columnNames).toEqual([
         'client', 'project', 'session_id', 'raw_sha256',
         'title', 'started_at', 'imported_at',
@@ -157,72 +115,46 @@ describe('upsertSearchIndex', () => {
     }
   })
 
-  // -----------------------------------------------------------------------
-  // 4. Multiple different records
-  // -----------------------------------------------------------------------
-  it('inserts multiple different records', async () => {
-    const m1 = makeManifest({ session_id: 'sess-001', raw_sha256: 'hash1' })
-    const m2 = makeManifest({ session_id: 'sess-002', raw_sha256: 'hash2', title: 'Second' })
-    const m3 = makeManifest({ session_id: 'sess-003', raw_sha256: 'hash3', client: 'codex' })
+  it('inserts multiple different records', () => {
+    upsertSearchIndex(dbPath, makeManifest({ session_id: 'sess-001', raw_sha256: 'hash1' }))
+    upsertSearchIndex(dbPath, makeManifest({ session_id: 'sess-002', raw_sha256: 'hash2', title: 'Second' }))
+    upsertSearchIndex(dbPath, makeManifest({ session_id: 'sess-003', raw_sha256: 'hash3', client: 'codex' }))
 
-    await upsertSearchIndex(dbPath, m1)
-    await upsertSearchIndex(dbPath, m2)
-    await upsertSearchIndex(dbPath, m3)
-
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
+    const db = new Database(dbPath, { readonly: true })
     try {
-      const rows = db.exec('SELECT * FROM transcripts ORDER BY session_id')
-      expect(rows).toHaveLength(1)
-      expect(rows[0]!.values).toHaveLength(3)
-
-      const columns = rows[0]!.columns
-      const sessionIdx = columns.indexOf('session_id')
-      expect(rows[0]!.values[0]![sessionIdx]).toBe('sess-001')
-      expect(rows[0]!.values[1]![sessionIdx]).toBe('sess-002')
-      expect(rows[0]!.values[2]![sessionIdx]).toBe('sess-003')
+      const rows = db.prepare('SELECT session_id FROM transcripts ORDER BY session_id').all() as Record<string, unknown>[]
+      expect(rows).toHaveLength(3)
+      expect(rows[0]!['session_id']).toBe('sess-001')
+      expect(rows[1]!['session_id']).toBe('sess-002')
+      expect(rows[2]!['session_id']).toBe('sess-003')
     } finally {
       db.close()
     }
   })
 
-  // -----------------------------------------------------------------------
-  // 5. Opens existing db file (reads back previous data)
-  // -----------------------------------------------------------------------
-  it('opens an existing db and preserves previous records', async () => {
-    // Insert first record
-    await upsertSearchIndex(dbPath, makeManifest({ session_id: 'first' }))
+  it('opens an existing db and preserves previous records', () => {
+    upsertSearchIndex(dbPath, makeManifest({ session_id: 'first' }))
+    upsertSearchIndex(dbPath, makeManifest({ session_id: 'second', raw_sha256: 'different' }))
 
-    // Insert second record into same file
-    await upsertSearchIndex(dbPath, makeManifest({ session_id: 'second', raw_sha256: 'different' }))
-
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
+    const db = new Database(dbPath, { readonly: true })
     try {
-      const rows = db.exec('SELECT COUNT(*) as cnt FROM transcripts')
-      expect(rows[0]!.values[0]![0]).toBe(2)
+      const count = (db.prepare('SELECT COUNT(*) as cnt FROM transcripts').get() as { cnt: number }).cnt
+      expect(count).toBe(2)
     } finally {
       db.close()
     }
   })
 
-  // -----------------------------------------------------------------------
-  // 6. Primary key columns are correct (composite key)
-  // -----------------------------------------------------------------------
-  it('enforces composite primary key (client, project, session_id, raw_sha256)', async () => {
-    // Two records with same session_id but different raw_sha256 = 2 rows
-    const m1 = makeManifest({ raw_sha256: 'sha-aaa', title: 'First' })
-    const m2 = makeManifest({ raw_sha256: 'sha-bbb', title: 'Second' })
-    await upsertSearchIndex(dbPath, m1)
-    await upsertSearchIndex(dbPath, m2)
+  it('enforces composite primary key (client, project, session_id, raw_sha256)', () => {
+    upsertSearchIndex(dbPath, makeManifest({ raw_sha256: 'sha-aaa', title: 'First' }))
+    upsertSearchIndex(dbPath, makeManifest({ raw_sha256: 'sha-bbb', title: 'Second' }))
 
-    const SQL = await initSqlJs()
-    const db = new SQL.Database(readFileSync(dbPath))
+    const db = new Database(dbPath, { readonly: true })
     try {
-      const rows = db.exec('SELECT title FROM transcripts ORDER BY raw_sha256')
-      expect(rows[0]!.values).toHaveLength(2)
-      expect(rows[0]!.values[0]![0]).toBe('First')
-      expect(rows[0]!.values[1]![0]).toBe('Second')
+      const rows = db.prepare('SELECT title FROM transcripts ORDER BY raw_sha256').all() as Record<string, unknown>[]
+      expect(rows).toHaveLength(2)
+      expect(rows[0]!['title']).toBe('First')
+      expect(rows[1]!['title']).toBe('Second')
     } finally {
       db.close()
     }
@@ -246,53 +178,53 @@ describe('searchTranscripts', () => {
     rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('returns empty array when db does not exist', async () => {
-    const results = await searchTranscripts(dbPath, 'anything')
+  it('returns empty array when db does not exist', () => {
+    const results = searchTranscripts(dbPath, 'anything')
     expect(results).toEqual([])
   })
 
-  it('finds records matching query term in title', async () => {
-    await upsertSearchIndex(dbPath, makeManifest({ title: 'authentication bug', session_id: 'sess-auth' }))
-    await upsertSearchIndex(dbPath, makeManifest({ title: 'unrelated session', session_id: 'sess-other', raw_sha256: 'other' }))
+  it('finds records matching query term in title', () => {
+    upsertSearchIndex(dbPath, makeManifest({ title: 'authentication bug', session_id: 'sess-auth' }))
+    upsertSearchIndex(dbPath, makeManifest({ title: 'unrelated session', session_id: 'sess-other', raw_sha256: 'other' }))
 
-    const results = await searchTranscripts(dbPath, 'authentication')
+    const results = searchTranscripts(dbPath, 'authentication')
     expect(results).toHaveLength(1)
     expect(results[0]!.session_id).toBe('sess-auth')
   })
 
-  it('finds records matching query term in cwd', async () => {
-    await upsertSearchIndex(dbPath, makeManifest({ cwd: '/home/user/myproject', session_id: 'sess-cwd' }))
-    const results = await searchTranscripts(dbPath, 'myproject')
+  it('finds records matching query term in cwd', () => {
+    upsertSearchIndex(dbPath, makeManifest({ cwd: '/home/user/myproject', session_id: 'sess-cwd' }))
+    const results = searchTranscripts(dbPath, 'myproject')
     expect(results).toHaveLength(1)
     expect(results[0]!.session_id).toBe('sess-cwd')
   })
 
-  it('returns empty array when no records match', async () => {
-    await upsertSearchIndex(dbPath, makeManifest({ title: 'hello world' }))
-    const results = await searchTranscripts(dbPath, 'zzznomatch9999')
+  it('returns empty array when no records match', () => {
+    upsertSearchIndex(dbPath, makeManifest({ title: 'hello world' }))
+    const results = searchTranscripts(dbPath, 'zzznomatch9999')
     expect(results).toEqual([])
   })
 
-  it('respects the limit parameter', async () => {
+  it('respects the limit parameter', () => {
     for (let i = 0; i < 5; i++) {
-      await upsertSearchIndex(dbPath, makeManifest({
+      upsertSearchIndex(dbPath, makeManifest({
         session_id: `sess-${i}`,
         raw_sha256: `hash-${i}`,
         title: 'common keyword session',
       }))
     }
-    const results = await searchTranscripts(dbPath, 'common', 3)
+    const results = searchTranscripts(dbPath, 'common', 3)
     expect(results.length).toBe(3)
   })
 
-  it('result records have required SearchResult fields', async () => {
-    await upsertSearchIndex(dbPath, makeManifest({
+  it('result records have required SearchResult fields', () => {
+    upsertSearchIndex(dbPath, makeManifest({
       title: 'feature implementation',
       cwd: '/home/dev',
       branch: 'feature/auth',
       started_at: '2024-07-01T00:00:00Z',
     }))
-    const results = await searchTranscripts(dbPath, 'feature')
+    const results = searchTranscripts(dbPath, 'feature')
     expect(results).toHaveLength(1)
     const r = results[0]!
     expect(r.client).toBe('claude')
@@ -301,19 +233,18 @@ describe('searchTranscripts', () => {
     expect(r.cwd).toBe('/home/dev')
     expect(r.branch).toBe('feature/auth')
     expect(r.started_at).toBe('2024-07-01T00:00:00Z')
-    // rank field no longer exists — check there are exactly 7 keys
     expect(Object.keys(r)).toEqual(['client', 'project', 'session_id', 'title', 'cwd', 'branch', 'started_at'])
   })
 
-  it('returns empty array when sanitized query is empty (only special chars)', async () => {
-    await upsertSearchIndex(dbPath, makeManifest({ title: 'hello world' }))
-    const results = await searchTranscripts(dbPath, '"*()-')
+  it('returns empty array when sanitized query is empty (only special chars)', () => {
+    upsertSearchIndex(dbPath, makeManifest({ title: 'hello world' }))
+    const results = searchTranscripts(dbPath, '"*()-')
     expect(results).toEqual([])
   })
 
-  it('does not throw on multi-word query', async () => {
-    await upsertSearchIndex(dbPath, makeManifest({ title: 'authentication bug fix', session_id: 'sess-multi' }))
-    const results = await searchTranscripts(dbPath, 'authentication bug')
+  it('does not throw on multi-word query', () => {
+    upsertSearchIndex(dbPath, makeManifest({ title: 'authentication bug fix', session_id: 'sess-multi' }))
+    const results = searchTranscripts(dbPath, 'authentication bug')
     expect(results).toHaveLength(1)
     expect(results[0]!.session_id).toBe('sess-multi')
   })
