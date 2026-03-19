@@ -12,6 +12,8 @@ import { slugify } from '../transcript/common.js'
 import { defaultGlobalTranscriptRoot, discoverSourceFiles, transcriptMatchesRepo } from '../transcript/discover.js'
 import { importTranscript, transcriptHasContent } from '../transcript/import.js'
 import { parseTranscript } from '../transcript/parse.js'
+import { searchTranscripts, searchTranscriptsByColumns } from '../transcript/db.js'
+import type { SearchResult } from '../transcript/db.js'
 import { toPosixPath } from '../utils/path.js'
 
 // ---------------------------------------------------------------------------
@@ -269,4 +271,38 @@ export function formatText(payload: RecallResult): string {
   }
 
   return lines.join('\n')
+}
+
+// ---------------------------------------------------------------------------
+// Layered full-text search
+// ---------------------------------------------------------------------------
+
+export interface SearchRecallResult {
+  layer: 1 | 2 | 3
+  results: SearchResult[]
+}
+
+/**
+ * Three-layer search over the transcript index:
+ *   Layer 1 — commit_layer (git commit messages + changed files)
+ *   Layer 2 — title, cwd, branch (metadata, existing FTS behaviour)
+ *   Layer 3 — content (full clean markdown text)
+ *
+ * Returns results from the first layer that has matches.
+ */
+export function searchRecall(
+  globalRoot: string,
+  query: string,
+  limit = 20,
+): SearchRecallResult {
+  const dbPath = join(globalRoot, 'index', 'search.sqlite')
+
+  const layer1 = searchTranscriptsByColumns(dbPath, query, ['commit_layer'], limit)
+  if (layer1.length > 0) return { layer: 1, results: layer1 }
+
+  const layer2 = searchTranscripts(dbPath, query, limit)
+  if (layer2.length > 0) return { layer: 2, results: layer2 }
+
+  const layer3 = searchTranscriptsByColumns(dbPath, query, ['content'], limit)
+  return { layer: 3, results: layer3 }
 }

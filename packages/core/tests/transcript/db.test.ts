@@ -100,7 +100,7 @@ describe('upsertSearchIndex', () => {
     const db = new Database(dbPath, { readonly: true })
     try {
       const info = db.prepare('PRAGMA table_info(transcripts)').all() as Record<string, unknown>[]
-      expect(info).toHaveLength(18)
+      expect(info).toHaveLength(20)
       const columnNames = info.map((r) => r['name'])
       expect(columnNames).toEqual([
         'client', 'project', 'session_id', 'raw_sha256',
@@ -109,6 +109,7 @@ describe('upsertSearchIndex', () => {
         'global_raw_path', 'global_clean_path',
         'repo_raw_path', 'repo_clean_path', 'repo_manifest_path',
         'message_count', 'tool_event_count',
+        'content', 'commit_layer',
       ])
     } finally {
       db.close()
@@ -334,8 +335,8 @@ describe('rebuildFtsIndex', () => {
     initSchema(dbPath)
     const db = new Database(dbPath)
     try {
-      db.prepare(`INSERT INTO transcripts (${['client','project','session_id','raw_sha256','title','started_at','imported_at','cwd','branch','raw_source_path','raw_upload_permission','global_raw_path','global_clean_path','repo_raw_path','repo_clean_path','repo_manifest_path','message_count','tool_event_count'].join(',')}) VALUES (${Array(18).fill('?').join(',')})`)
-        .run('claude','proj','s1','h1','rebuild test','2024-01-01T00:00:00Z','2024-01-01T00:00:00Z','/cwd','main','/raw','none','/graw','/gclean','','','',1,0)
+      db.prepare(`INSERT INTO transcripts (${['client','project','session_id','raw_sha256','title','started_at','imported_at','cwd','branch','raw_source_path','raw_upload_permission','global_raw_path','global_clean_path','repo_raw_path','repo_clean_path','repo_manifest_path','message_count','tool_event_count','content','commit_layer'].join(',')}) VALUES (${Array(20).fill('?').join(',')})`)
+        .run('claude','proj','s1','h1','rebuild test','2024-01-01T00:00:00Z','2024-01-01T00:00:00Z','/cwd','main','/raw','none','/graw','/gclean','','','',1,0,'','')
     } finally {
       db.close()
     }

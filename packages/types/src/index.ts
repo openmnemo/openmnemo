@@ -48,4 +48,6 @@ export interface ManifestEntry {
   tool_event_count: number
   cleaning_mode: string
   repo_mirror_enabled: boolean
+  content?: string        // full clean markdown text (populated at import time)
+  commit_layer?: string   // git commit message + changed files (task 1.2)
 }

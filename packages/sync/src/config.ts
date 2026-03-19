@@ -42,6 +42,10 @@ export interface Config {
   readonly cname: string
   readonly webhook_url: string
   readonly report_base_url: string
+  readonly vector_backend: 'sqlite-vec' | 'qdrant'
+  readonly graph_backend: 'sqlite' | 'neo4j'
+  readonly embedding_model: string
+  readonly embedding_dims: number
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +163,10 @@ function defaultConfig(): Config {
     cname: '',
     webhook_url: '',
     report_base_url: '',
+    vector_backend: 'sqlite-vec',
+    graph_backend: 'sqlite',
+    embedding_model: '',
+    embedding_dims: 1536,
   }
 }
 
@@ -216,6 +224,12 @@ function parseRaw(raw: Record<string, unknown>): Config {
     cname: typeof raw['cname'] === 'string' ? raw['cname'] : '',
     webhook_url: typeof raw['webhook_url'] === 'string' ? raw['webhook_url'] : '',
     report_base_url: typeof raw['report_base_url'] === 'string' ? raw['report_base_url'] : '',
+    vector_backend: raw['vector_backend'] === 'qdrant' ? 'qdrant' : 'sqlite-vec',
+    graph_backend: raw['graph_backend'] === 'neo4j' ? 'neo4j' : 'sqlite',
+    embedding_model: typeof raw['embedding_model'] === 'string' ? raw['embedding_model'] : '',
+    embedding_dims: typeof raw['embedding_dims'] === 'number' && raw['embedding_dims'] > 0
+      ? raw['embedding_dims']
+      : 1536,
   }
 }
 

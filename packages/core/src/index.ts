@@ -11,8 +11,6 @@ export type {
   ManifestEntry,
 } from '@openmnemo/types'
 
-export type { RecallResult } from './recall/recall.js'
-
 // Common utilities
 export {
   CLIENTS,
@@ -56,7 +54,7 @@ export {
 } from './transcript/parse.js'
 
 // Database
-export { upsertSearchIndex, searchTranscripts, sanitizeFtsQuery } from './transcript/db.js'
+export { upsertSearchIndex, searchTranscripts, searchTranscriptsByColumns, sanitizeFtsQuery, initSchema, rebuildFtsIndex } from './transcript/db.js'
 export type { SearchResult } from './transcript/db.js'
 
 // Discovery
@@ -86,12 +84,14 @@ export {
 // Recall
 export {
   recall,
+  searchRecall,
   syncCurrentProject,
   findLatestSession,
   findLatestFromJsonl,
   cwdMatches,
   formatText as formatRecallText,
 } from './recall/recall.js'
+export type { RecallResult, SearchRecallResult } from './recall/recall.js'
 
 // Utils
 export { toPosixPath } from './utils/path.js'
@@ -102,3 +102,17 @@ export type { StorageAdapter } from './storage/adapter.js'
 export { LocalAdapter } from './storage/local-adapter.js'
 export { GiteaAdapter } from './storage/gitea-adapter.js'
 export type { GiteaAdapterOptions } from './storage/gitea-adapter.js'
+
+// Search adapter
+export type { SearchAdapter, SearchOptions } from './storage/search/search-adapter.js'
+export { SqliteFtsAdapter } from './storage/search/sqlite-fts-adapter.js'
+
+// Vector adapter
+export type { VectorAdapter, VectorMetadata, VectorResult } from './storage/vector/vector-adapter.js'
+
+// Graph adapter
+export type { GraphAdapter, GraphNode, GraphEdge } from './storage/graph/graph-adapter.js'
+
+// Storage factory
+export type { StorageConfig } from './storage/factory.js'
+export { createSearchAdapter, createVectorAdapter, createGraphAdapter } from './storage/factory.js'

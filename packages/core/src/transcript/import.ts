@@ -103,7 +103,8 @@ export async function importTranscript(
     appendJsonl(globalEventLogPath, manifestRecord)
   }
   try {
-    upsertSearchIndex(globalDbPath, manifest)
+    const contentText = readFileSync(globalCleanPath, 'utf-8')
+    upsertSearchIndex(globalDbPath, { ...manifest, content: contentText, commit_layer: '' })
   } catch {
     // Non-fatal: search index failure should not abort the import
   }

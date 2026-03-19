@@ -2,26 +2,23 @@
  * Transcript search index — SQLite upsert for the global transcript catalog.
  *
  * Uses better-sqlite3 (native binding) for synchronous SQLite access.
- * FTS4 full-text search on title, cwd, branch columns.
+ * FTS4 full-text search on title, cwd, branch, content, commit_layer columns.
  *
  * Design notes:
- * - Schema init (CREATE TABLE + CREATE VIRTUAL TABLE) happens only in the
- *   write path (upsertSearchIndex / initSchema). The read path (searchTranscripts)
- *   opens readonly and never writes.
- * - FTS rebuild is deferred: upsertSearchIndex does NOT rebuild per-row.
- *   Call rebuildFtsIndex() once after a batch of upserts.
+ * - Schema init uses ALTER TABLE ADD COLUMN for additive migrations (no version table).
+ * - FTS table is dropped+recreated when column list changes.
  * - busy_timeout = 5000ms guards against concurrent writer collisions.
  * - Single-quotes are stripped from FTS queries to prevent MATCH parse errors.
+ * - searchTranscripts opens readonly and never writes.
  */
 
 import Database from 'better-sqlite3'
-import { mkdirSync } from 'node:fs'
-import { existsSync } from 'node:fs'
+import { mkdirSync, existsSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { ManifestEntry } from '@openmnemo/types'
 
 // ---------------------------------------------------------------------------
-// Column definitions — must stay in sync with CREATE_TABLE_SQL
+// Column definitions
 // ---------------------------------------------------------------------------
 
 const PK_COLUMNS = [
@@ -46,6 +43,8 @@ const DATA_COLUMNS = [
   'repo_manifest_path',
   'message_count',
   'tool_event_count',
+  'content',
+  'commit_layer',
 ] as const
 
 const ALL_COLUMNS = [...PK_COLUMNS, ...DATA_COLUMNS] as const
@@ -74,6 +73,8 @@ const CREATE_TABLE_SQL = `
     repo_manifest_path  TEXT    NOT NULL,
     message_count       INTEGER NOT NULL,
     tool_event_count    INTEGER NOT NULL,
+    content             TEXT    NOT NULL DEFAULT '',
+    commit_layer        TEXT    NOT NULL DEFAULT '',
     PRIMARY KEY (client, project, session_id, raw_sha256)
   )
 `
@@ -86,23 +87,17 @@ const UPSERT_SQL = `
     ${DATA_COLUMNS.map((c) => `${c} = excluded.${c}`).join(',\n    ')}
 `
 
-// FTS4 content table — tracks title, cwd, branch for keyword search.
-// The content table keeps FTS in sync with the source table via rebuild.
 const CREATE_FTS_SQL = `
   CREATE VIRTUAL TABLE IF NOT EXISTS transcripts_fts USING fts4(
     content='transcripts',
-    title, cwd, branch
+    title, cwd, branch, content, commit_layer
   )
 `
 
-// Full rebuild re-reads all rows from the content table.
-// Must be called after any write batch to keep FTS in sync.
 const REBUILD_FTS_SQL = `
   INSERT INTO transcripts_fts(transcripts_fts) VALUES('rebuild')
 `
 
-// Join on rowid (stable as long as no DELETE + re-INSERT or VACUUM).
-// After any DELETE or VACUUM, call rebuildFtsIndex() to re-sync docid→rowid.
 const SEARCH_SQL = `
   SELECT t.client, t.project, t.session_id, t.title, t.cwd, t.branch, t.started_at
   FROM transcripts_fts
@@ -132,18 +127,19 @@ export interface SearchResult {
 
 /**
  * Sanitize a user-supplied query string for safe use in an FTS4 MATCH clause.
- * Strips FTS4 metacharacters AND single quotes (which cause MATCH parse errors).
+ * Strips all non-letter/digit/space characters (including single quotes which
+ * cause FTS4 MATCH parse errors).
  */
 export function sanitizeFtsQuery(raw: string): string {
   return raw
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')  // strip all non-letter/digit/space (incl. single quotes)
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .trim()
     .replace(/\s+/g, ' ')
 }
 
 /**
  * Open (or create) a writable SQLite database.
- * Sets WAL mode and busy_timeout to handle concurrent access.
+ * Runs schema migration on every open.
  */
 function openDb(dbPath: string): InstanceType<typeof Database> {
   mkdirSync(dirname(dbPath), { recursive: true })
@@ -154,14 +150,50 @@ function openDb(dbPath: string): InstanceType<typeof Database> {
 }
 
 /**
+ * Additive column migration — adds content and commit_layer if missing.
+ * Ignores "duplicate column name" errors (idempotent).
+ */
+function migrateSchema(db: InstanceType<typeof Database>): void {
+  for (const col of ['content', 'commit_layer']) {
+    try {
+      db.exec(`ALTER TABLE transcripts ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`)
+    } catch (e: unknown) {
+      if (!(e instanceof Error) || !e.message.includes('duplicate column name')) throw e
+    }
+  }
+}
+
+/**
+ * Drop and recreate FTS table if it doesn't have the new columns.
+ * Must be called after migrateSchema so the source table is up to date.
+ */
+function migrateFts(db: InstanceType<typeof Database>): void {
+  const row = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='transcripts_fts'"
+  ).get() as { sql: string } | undefined
+
+  if (!row || !row.sql.includes('commit_layer')) {
+    db.exec('DROP TABLE IF EXISTS transcripts_fts')
+    db.exec(CREATE_FTS_SQL)
+    db.exec(REBUILD_FTS_SQL)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
  * Initialise schema (transcripts table + FTS virtual table).
- * Safe to call multiple times — uses IF NOT EXISTS.
+ * Safe to call multiple times — uses IF NOT EXISTS + additive migration.
  */
 export function initSchema(dbPath: string): void {
   const db = openDb(dbPath)
   try {
     db.exec(CREATE_TABLE_SQL)
+    migrateSchema(db)
     db.exec(CREATE_FTS_SQL)
+    migrateFts(db)
   } finally {
     db.close()
   }
@@ -174,21 +206,16 @@ export function initSchema(dbPath: string): void {
 export function rebuildFtsIndex(dbPath: string): void {
   const db = openDb(dbPath)
   try {
-    db.exec(CREATE_FTS_SQL)  // ensure FTS table exists
+    db.exec(CREATE_FTS_SQL)
     db.exec(REBUILD_FTS_SQL)
   } finally {
     db.close()
   }
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 /**
  * Full-text search over the transcript index using FTS4.
- * Returns an empty array when the database does not exist or the sanitized
- * query is empty. Opens readonly — never writes.
+ * Opens readonly — never writes. Returns [] when db missing or query empty.
  */
 export function searchTranscripts(
   dbPath: string,
@@ -203,7 +230,6 @@ export function searchTranscripts(
   try {
     return db.prepare(SEARCH_SQL).all(sanitized, limit) as SearchResult[]
   } catch {
-    // FTS table missing or index corrupt — return empty rather than throw
     return []
   } finally {
     db.close()
@@ -211,11 +237,33 @@ export function searchTranscripts(
 }
 
 /**
- * Insert or update a single transcript manifest row in the SQLite search
- * index at dbPath. Creates the database and schema if they do not exist.
- *
- * NOTE: Does NOT rebuild the FTS index. Call rebuildFtsIndex(dbPath) once
- * after a batch of upserts so that searchTranscripts returns fresh results.
+ * Search restricted to specific FTS columns using FTS4 column filter syntax.
+ * e.g. columns=['commit_layer'] → MATCH 'commit_layer:term'
+ */
+export function searchTranscriptsByColumns(
+  dbPath: string,
+  query: string,
+  columns: string[],
+  limit = 20,
+): SearchResult[] {
+  const sanitized = sanitizeFtsQuery(query)
+  if (!sanitized || columns.length === 0) return []
+  if (!existsSync(dbPath)) return []
+
+  const columnQuery = columns.map((col) => `${col}:${sanitized}`).join(' OR ')
+  const db = new Database(dbPath, { readonly: true })
+  try {
+    return db.prepare(SEARCH_SQL).all(columnQuery, limit) as SearchResult[]
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
+/**
+ * Insert or update a single transcript manifest row.
+ * Creates schema if needed. Rebuilds FTS after write.
  */
 export function upsertSearchIndex(
   dbPath: string,
@@ -224,7 +272,9 @@ export function upsertSearchIndex(
   const db = openDb(dbPath)
   try {
     db.exec(CREATE_TABLE_SQL)
+    migrateSchema(db)
     db.exec(CREATE_FTS_SQL)
+    migrateFts(db)
 
     const record: Record<string, unknown> = { ...manifest }
     const params: (string | number)[] = ALL_COLUMNS.map((col) => {
@@ -233,11 +283,7 @@ export function upsertSearchIndex(
       return typeof value === 'number' ? value : String(value)
     })
 
-    // Pass array directly (not spread) for type-safe binding
     db.prepare(UPSERT_SQL).run(params)
-
-    // Rebuild FTS after every single upsert to keep search in sync.
-    // For bulk imports, callers may skip this and call rebuildFtsIndex() once.
     db.exec(REBUILD_FTS_SQL)
   } finally {
     db.close()
