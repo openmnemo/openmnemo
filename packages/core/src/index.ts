@@ -109,9 +109,11 @@ export { SqliteFtsAdapter } from './storage/search/sqlite-fts-adapter.js'
 
 // Vector adapter
 export type { VectorAdapter, VectorMetadata, VectorResult } from './storage/vector/vector-adapter.js'
+export { SqliteVecAdapter } from './storage/vector/sqlite-vec-adapter.js'
 
 // Graph adapter
 export type { GraphAdapter, GraphNode, GraphEdge } from './storage/graph/graph-adapter.js'
+export { SqliteGraphAdapter } from './storage/graph/sqlite-graph-adapter.js'
 
 // Storage factory
 export type { StorageConfig } from './storage/factory.js'

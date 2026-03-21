@@ -26,11 +26,14 @@ function makeManifest(overrides: Partial<ManifestEntry> = {}): ManifestEntry {
     raw_upload_permission: 'granted',
     global_raw_path: '/global/raw/file.jsonl',
     global_clean_path: '/global/clean/file.md',
+    global_manifest_path: '/global/manifest/file.json',
     repo_raw_path: '.memorytree/raw/file.jsonl',
     repo_clean_path: '.memorytree/clean/file.md',
     repo_manifest_path: '.memorytree/manifest.yaml',
     message_count: 42,
     tool_event_count: 7,
+    cleaning_mode: 'deterministic-code',
+    repo_mirror_enabled: true,
     ...overrides,
   }
 }
@@ -94,7 +97,7 @@ describe('upsertSearchIndex', () => {
     }
   })
 
-  it('creates table with 18 columns', () => {
+  it('creates table with the expected columns', () => {
     upsertSearchIndex(dbPath, makeManifest())
 
     const db = new Database(dbPath, { readonly: true })
@@ -114,6 +117,122 @@ describe('upsertSearchIndex', () => {
       ])
     } finally {
       db.close()
+    }
+  })
+
+  it('stores repo_mirror_enabled as INTEGER 0/1 values', () => {
+    upsertSearchIndex(dbPath, makeManifest({
+      session_id: 'sess-disabled',
+      raw_sha256: 'sha-disabled',
+      repo_mirror_enabled: false,
+    }))
+    upsertSearchIndex(dbPath, makeManifest({
+      session_id: 'sess-enabled',
+      raw_sha256: 'sha-enabled',
+      repo_mirror_enabled: true,
+    }))
+
+    const db = new Database(dbPath, { readonly: true })
+    try {
+      const rows = db.prepare(`
+        SELECT session_id, repo_mirror_enabled, typeof(repo_mirror_enabled) AS value_type
+        FROM transcripts
+        ORDER BY session_id
+      `).all() as Array<Record<string, unknown>>
+
+      expect(rows).toEqual([
+        { session_id: 'sess-disabled', repo_mirror_enabled: 0, value_type: 'integer' },
+        { session_id: 'sess-enabled', repo_mirror_enabled: 1, value_type: 'integer' },
+      ])
+    } finally {
+      db.close()
+    }
+  })
+
+  it('migrates legacy TEXT repo_mirror_enabled values to INTEGER', () => {
+    const db = new Database(dbPath)
+    try {
+      db.exec(`
+        CREATE TABLE transcripts (
+          client TEXT NOT NULL,
+          project TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          raw_sha256 TEXT NOT NULL,
+          title TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          imported_at TEXT NOT NULL,
+          cwd TEXT NOT NULL,
+          branch TEXT NOT NULL,
+          raw_source_path TEXT NOT NULL,
+          raw_upload_permission TEXT NOT NULL,
+          global_raw_path TEXT NOT NULL,
+          global_clean_path TEXT NOT NULL,
+          global_manifest_path TEXT NOT NULL DEFAULT '',
+          repo_raw_path TEXT NOT NULL,
+          repo_clean_path TEXT NOT NULL,
+          repo_manifest_path TEXT NOT NULL,
+          message_count INTEGER NOT NULL,
+          tool_event_count INTEGER NOT NULL,
+          cleaning_mode TEXT NOT NULL DEFAULT '',
+          repo_mirror_enabled TEXT NOT NULL DEFAULT '',
+          content TEXT NOT NULL DEFAULT '',
+          commit_layer TEXT NOT NULL DEFAULT '',
+          PRIMARY KEY (client, project, session_id, raw_sha256)
+        )
+      `)
+      db.prepare(`
+        INSERT INTO transcripts (${[
+          'client', 'project', 'session_id', 'raw_sha256', 'title', 'started_at', 'imported_at',
+          'cwd', 'branch', 'raw_source_path', 'raw_upload_permission', 'global_raw_path',
+          'global_clean_path', 'global_manifest_path', 'repo_raw_path', 'repo_clean_path',
+          'repo_manifest_path', 'message_count', 'tool_event_count', 'cleaning_mode',
+          'repo_mirror_enabled', 'content', 'commit_layer',
+        ].join(',')}) VALUES (${Array(23).fill('?').join(',')})
+      `).run(
+        'claude', 'proj', 'sess-false', 'hash-false', 'legacy false', '2024-01-01T00:00:00Z',
+        '2024-01-01T00:00:00Z', '/cwd', 'main', '/raw', 'none', '/graw', '/gclean', '/gmanifest',
+        '/rraw', '/rclean', '/rmanifest', 1, 0, 'deterministic-code', 'false', '', '',
+      )
+      db.prepare(`
+        INSERT INTO transcripts (${[
+          'client', 'project', 'session_id', 'raw_sha256', 'title', 'started_at', 'imported_at',
+          'cwd', 'branch', 'raw_source_path', 'raw_upload_permission', 'global_raw_path',
+          'global_clean_path', 'global_manifest_path', 'repo_raw_path', 'repo_clean_path',
+          'repo_manifest_path', 'message_count', 'tool_event_count', 'cleaning_mode',
+          'repo_mirror_enabled', 'content', 'commit_layer',
+        ].join(',')}) VALUES (${Array(23).fill('?').join(',')})
+      `).run(
+        'claude', 'proj', 'sess-true', 'hash-true', 'legacy true', '2024-01-02T00:00:00Z',
+        '2024-01-02T00:00:00Z', '/cwd', 'main', '/raw', 'none', '/graw', '/gclean', '/gmanifest',
+        '/rraw', '/rclean', '/rmanifest', 1, 0, 'deterministic-code', 'true', '', '',
+      )
+    } finally {
+      db.close()
+    }
+
+    initSchema(dbPath)
+
+    const migratedDb = new Database(dbPath, { readonly: true })
+    try {
+      const repoMirrorColumn = migratedDb.prepare(`
+        SELECT type
+        FROM pragma_table_info('transcripts')
+        WHERE name = 'repo_mirror_enabled'
+      `).get() as { type: string }
+      expect(repoMirrorColumn.type).toBe('INTEGER')
+
+      const rows = migratedDb.prepare(`
+        SELECT session_id, repo_mirror_enabled, typeof(repo_mirror_enabled) AS value_type
+        FROM transcripts
+        ORDER BY session_id
+      `).all() as Array<Record<string, unknown>>
+
+      expect(rows).toEqual([
+        { session_id: 'sess-false', repo_mirror_enabled: 0, value_type: 'integer' },
+        { session_id: 'sess-true', repo_mirror_enabled: 1, value_type: 'integer' },
+      ])
+    } finally {
+      migratedDb.close()
     }
   })
 
@@ -337,7 +456,7 @@ describe('rebuildFtsIndex', () => {
     const db = new Database(dbPath)
     try {
       db.prepare(`INSERT INTO transcripts (${['client','project','session_id','raw_sha256','title','started_at','imported_at','cwd','branch','raw_source_path','raw_upload_permission','global_raw_path','global_clean_path','global_manifest_path','repo_raw_path','repo_clean_path','repo_manifest_path','message_count','tool_event_count','cleaning_mode','repo_mirror_enabled','content','commit_layer'].join(',')}) VALUES (${Array(23).fill('?').join(',')})`)
-        .run('claude','proj','s1','h1','rebuild test','2024-01-01T00:00:00Z','2024-01-01T00:00:00Z','/cwd','main','/raw','none','/graw','/gclean','','/rraw','/rclean','/rmanifest',1,0,'','','','')
+        .run('claude','proj','s1','h1','rebuild test','2024-01-01T00:00:00Z','2024-01-01T00:00:00Z','/cwd','main','/raw','none','/graw','/gclean','','/rraw','/rclean','/rmanifest',1,0,'',0,'','')
     } finally {
       db.close()
     }

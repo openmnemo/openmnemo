@@ -56,8 +56,9 @@ const ALL_COLUMNS = [...PK_COLUMNS, ...DATA_COLUMNS] as const
 // SQL statements
 // ---------------------------------------------------------------------------
 
-const CREATE_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS transcripts (
+function createTableSql(tableName = 'transcripts', ifNotExists = true): string {
+  return `
+  CREATE TABLE ${ifNotExists ? 'IF NOT EXISTS ' : ''}${tableName} (
     client              TEXT    NOT NULL,
     project             TEXT    NOT NULL,
     session_id          TEXT    NOT NULL,
@@ -78,12 +79,13 @@ const CREATE_TABLE_SQL = `
     message_count       INTEGER NOT NULL,
     tool_event_count    INTEGER NOT NULL,
     cleaning_mode       TEXT    NOT NULL DEFAULT '',
-    repo_mirror_enabled TEXT    NOT NULL DEFAULT '',
+    repo_mirror_enabled INTEGER NOT NULL DEFAULT 0,
     content             TEXT    NOT NULL DEFAULT '',
     commit_layer        TEXT    NOT NULL DEFAULT '',
     PRIMARY KEY (client, project, session_id, raw_sha256)
   )
 `
+}
 
 const UPSERT_SQL = `
   INSERT INTO transcripts (
@@ -159,13 +161,89 @@ function openDb(dbPath: string): InstanceType<typeof Database> {
  * Additive column migration — adds content and commit_layer if missing.
  * Ignores "duplicate column name" errors (idempotent).
  */
+function tableInfo(
+  db: InstanceType<typeof Database>,
+  tableName = 'transcripts',
+): Array<{ name: string, type: string }> {
+  return db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string, type: string }>
+}
+
+function columnType(db: InstanceType<typeof Database>, columnName: string): string | null {
+  const column = tableInfo(db).find((entry) => entry.name === columnName)
+  return column ? column.type.toUpperCase() : null
+}
+
+function addColumnIfMissing(
+  db: InstanceType<typeof Database>,
+  columnName: string,
+  columnSql: string,
+): void {
+  if (columnType(db, columnName) !== null) return
+  db.exec(`ALTER TABLE transcripts ADD COLUMN ${columnSql}`)
+}
+
+function sqliteBoolean(value: unknown): 0 | 1 {
+  if (typeof value === 'boolean') return value ? 1 : 0
+  if (typeof value === 'number') return value === 0 ? 0 : 1
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    return ['1', 'true', 'yes', 'on'].includes(normalized) ? 1 : 0
+  }
+  return 0
+}
+
+function rebuildTranscriptsForBooleanRepoMirror(db: InstanceType<typeof Database>): void {
+  db.exec('DROP TABLE IF EXISTS transcripts_fts')
+  db.exec('DROP TABLE IF EXISTS transcripts__new')
+  db.exec(createTableSql('transcripts__new', false))
+  db.exec(`
+    INSERT INTO transcripts__new (${ALL_COLUMNS.join(', ')})
+    SELECT
+      client,
+      project,
+      session_id,
+      raw_sha256,
+      title,
+      started_at,
+      imported_at,
+      cwd,
+      branch,
+      raw_source_path,
+      raw_upload_permission,
+      global_raw_path,
+      global_clean_path,
+      global_manifest_path,
+      repo_raw_path,
+      repo_clean_path,
+      repo_manifest_path,
+      message_count,
+      tool_event_count,
+      cleaning_mode,
+      CASE
+        WHEN lower(trim(CAST(repo_mirror_enabled AS TEXT))) IN ('1', 'true', 'yes', 'on') THEN 1
+        ELSE 0
+      END,
+      content,
+      commit_layer
+    FROM transcripts
+  `)
+  db.exec('DROP TABLE transcripts')
+  db.exec('ALTER TABLE transcripts__new RENAME TO transcripts')
+}
+
 function migrateSchema(db: InstanceType<typeof Database>): void {
-  for (const col of ['global_manifest_path', 'cleaning_mode', 'repo_mirror_enabled', 'content', 'commit_layer']) {
-    try {
-      db.exec(`ALTER TABLE transcripts ADD COLUMN ${col} TEXT NOT NULL DEFAULT ''`)
-    } catch (e: unknown) {
-      if (!(e instanceof Error) || !e.message.includes('duplicate column name')) throw e
-    }
+  addColumnIfMissing(db, 'global_manifest_path', "global_manifest_path TEXT NOT NULL DEFAULT ''")
+  addColumnIfMissing(db, 'cleaning_mode', "cleaning_mode TEXT NOT NULL DEFAULT ''")
+  addColumnIfMissing(db, 'content', "content TEXT NOT NULL DEFAULT ''")
+  addColumnIfMissing(db, 'commit_layer', "commit_layer TEXT NOT NULL DEFAULT ''")
+
+  const repoMirrorType = columnType(db, 'repo_mirror_enabled')
+  if (repoMirrorType === null) {
+    db.exec("ALTER TABLE transcripts ADD COLUMN repo_mirror_enabled INTEGER NOT NULL DEFAULT 0")
+    return
+  }
+  if (repoMirrorType !== 'INTEGER') {
+    rebuildTranscriptsForBooleanRepoMirror(db)
   }
 }
 
@@ -197,7 +275,7 @@ export function initSchema(dbPath: string): void {
   const db = openDb(dbPath)
   try {
     db.transaction(() => {
-      db.exec(CREATE_TABLE_SQL)
+      db.exec(createTableSql())
       migrateSchema(db)
       db.exec(CREATE_FTS_SQL)
       migrateFts(db)
@@ -285,7 +363,7 @@ export function upsertSearchIndex(
   const db = openDb(dbPath)
   try {
     db.transaction(() => {
-      db.exec(CREATE_TABLE_SQL)
+      db.exec(createTableSql())
       migrateSchema(db)
       db.exec(CREATE_FTS_SQL)
       migrateFts(db)
@@ -294,6 +372,7 @@ export function upsertSearchIndex(
     const record: Record<string, unknown> = { ...manifest }
     const params: (string | number)[] = ALL_COLUMNS.map((col) => {
       const value = record[col]
+      if (col === 'repo_mirror_enabled') return sqliteBoolean(value)
       if (value === undefined || value === null) return ''
       return typeof value === 'number' ? value : String(value)
     })
