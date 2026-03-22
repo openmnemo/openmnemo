@@ -18,9 +18,15 @@ export interface FindSessionsByEntityOptions {
   limit?: number
 }
 
+export interface ManagedSubgraphSelector {
+  managedBy: string
+  managedRootId: string
+}
+
 export interface GraphAdapter {
   upsertNode(node: GraphNode): void
   upsertEdge(edge: GraphEdge): void
+  deleteManagedSubgraph(selector: ManagedSubgraphSelector): void
   findRelated(entityId: string, depth: number): GraphNode[]
   findSessionsByEntity(options?: FindSessionsByEntityOptions): GraphNode[]
   query(cypher: string): unknown[]

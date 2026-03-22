@@ -7,9 +7,10 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, appen
 import { dirname, extname, join, relative } from 'node:path'
 
 import type { ManifestEntry, ParsedTranscript } from '@openmnemo/types'
+import { createGraphAdapter } from '../storage/factory.js'
 import { toPosixPath } from '../utils/path.js'
 import { buildCommitLayer } from '../utils/exec.js'
-import { buildTranscriptExtractionBundle } from '../memory/extraction.js'
+import { buildTranscriptExtractionBundle, syncExtractionBundleGraph } from '../memory/extraction.js'
 import {
   loadJson,
   normalizeTimestamp,
@@ -126,6 +127,17 @@ export async function importTranscript(
     writeJson(repoExtractionPath, extractionBundle as unknown as Record<string, unknown>)
   }
   writeJson(globalExtractionPath, extractionBundle as unknown as Record<string, unknown>)
+
+  try {
+    const graph = createGraphAdapter({ indexDir: join(globalRoot, 'index') })
+    try {
+      syncExtractionBundleGraph(graph, extractionBundle)
+    } finally {
+      graph.close()
+    }
+  } catch {
+    // Non-fatal: graph index failure should not abort the import
+  }
 
   try {
     upsertSearchIndex(globalDbPath, { ...manifest, content: contentText, commit_layer: commitLayer })

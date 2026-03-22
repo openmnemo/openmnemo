@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import type { ManifestEntry, ParsedTranscript } from '@openmnemo/types'
 
 import {
@@ -6,6 +9,8 @@ import {
   buildTranscriptSourceAsset,
   isMemoryExtractionBundle,
 } from '../../src/index.js'
+import { syncExtractionBundleGraph } from '../../src/memory/extraction.js'
+import { createGraphAdapter } from '../../src/storage/factory.js'
 
 function buildManifest(overrides: Partial<ManifestEntry> = {}): ManifestEntry {
   return {
@@ -111,5 +116,82 @@ describe('buildTranscriptExtractionBundle', () => {
     expect(bundle.memory_units).toHaveLength(1)
     expect(bundle.memory_units[0]!.source_ref).toBe('tools')
     expect(bundle.memory_units[0]!.body).toContain('read_file login.ts')
+  })
+
+  it('upserts bundle graph data into the runtime graph store for unit-level session recall', () => {
+    const bundle = buildTranscriptExtractionBundle(
+      buildParsed(),
+      buildManifest(),
+      '# Clean transcript\n\nBody text',
+    )
+
+    const indexDir = mkdtempSync(join(tmpdir(), 'extraction-graph-'))
+    const graph = createGraphAdapter({ indexDir })
+    try {
+      syncExtractionBundleGraph(graph, bundle)
+
+      const sessions = graph.findSessionsByEntity({
+        entityName: 'memory unit',
+        entityLabel: 'MemoryUnit',
+        depth: 1,
+        limit: 10,
+      })
+
+      expect(sessions).toHaveLength(1)
+      expect(sessions[0]!.properties['session_id']).toBe('sess-123')
+
+      const related = graph.findRelated('session:codex:openmnemo:sess-123', 1)
+      expect(related.some((node) => node.labels.includes('MemoryUnit'))).toBe(true)
+      expect(related.some((node) => node.labels.includes('ArchiveAnchor'))).toBe(true)
+    } finally {
+      graph.close()
+      rmSync(indexDir, { recursive: true, force: true })
+    }
+  })
+
+  it('replaces previously managed graph nodes when the same session is re-imported', () => {
+    const indexDir = mkdtempSync(join(tmpdir(), 'extraction-graph-replace-'))
+    const graph = createGraphAdapter({ indexDir })
+    try {
+      const firstBundle = buildTranscriptExtractionBundle(
+        buildParsed(),
+        buildManifest(),
+        '# Clean transcript\n\nBody text',
+      )
+      syncExtractionBundleGraph(graph, firstBundle)
+
+      const secondBundle = buildTranscriptExtractionBundle(
+        buildParsed({
+          messages: [
+            { role: 'user', text: 'Beta-only retrieval phrase', timestamp: '2026-03-22T08:02:00Z' },
+            { role: 'assistant', text: 'Updated follow-up response', timestamp: '2026-03-22T08:02:10Z' },
+          ],
+          tool_events: [],
+        }),
+        buildManifest({ raw_sha256: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' }),
+        '# Updated clean transcript\n\nBody text',
+      )
+      syncExtractionBundleGraph(graph, secondBundle)
+
+      const stale = graph.findSessionsByEntity({
+        entityName: 'memory units first',
+        entityLabel: 'MemoryUnit',
+        depth: 1,
+        limit: 10,
+      })
+      const fresh = graph.findSessionsByEntity({
+        entityName: 'beta-only retrieval phrase',
+        entityLabel: 'MemoryUnit',
+        depth: 1,
+        limit: 10,
+      })
+
+      expect(stale).toHaveLength(0)
+      expect(fresh).toHaveLength(1)
+      expect(fresh[0]!.properties['session_id']).toBe('sess-123')
+    } finally {
+      graph.close()
+      rmSync(indexDir, { recursive: true, force: true })
+    }
   })
 })

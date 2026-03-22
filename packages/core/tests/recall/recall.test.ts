@@ -349,6 +349,58 @@ describe('searchRecall', () => {
     expect(result.results[0]?.session_id).toBe('sess-memory')
   })
 
+  it('resolves sessions from unit-level graph nodes after graph upgrade', () => {
+    insertTranscript(tmpDir, {
+      session_id: 'sess-unit-graph',
+      raw_sha256: 'sha-unit-graph',
+      title: 'Design review',
+      started_at: '2024-06-04T10:00:00Z',
+      content: 'Authentication follow-up without retrieval keywords.',
+      commit_layer: 'fix: login redirect edge case',
+    })
+
+    const graph = createGraphAdapter({ indexDir: join(tmpDir, 'index') })
+    try {
+      graph.upsertNode({
+        id: 'session:claude:openmnemo:sess-unit-graph',
+        labels: ['Session'],
+        properties: {
+          entity_kind: 'session',
+          client: 'claude',
+          project: 'openmnemo',
+          session_id: 'sess-unit-graph',
+          title: 'Design review',
+        },
+      })
+      graph.upsertNode({
+        id: 'memory_unit:claude:openmnemo:sess-unit-graph:001',
+        labels: ['MemoryUnit', 'DocumentChunk'],
+        properties: {
+          entity_kind: 'memory unit',
+          unit_type: 'document_chunk',
+          unit_type_display: 'document chunk',
+          title: 'Primary retrieval chunk',
+          summary: 'Structured memory unit graph recall',
+          source_ref: 'turn:1',
+        },
+      })
+      graph.upsertEdge({
+        fromId: 'session:claude:openmnemo:sess-unit-graph',
+        toId: 'memory_unit:claude:openmnemo:sess-unit-graph:001',
+        type: 'CONTAINS_UNIT',
+      })
+    } finally {
+      graph.close()
+    }
+
+    const result = searchRecall(tmpDir, 'memory unit', 5)
+
+    expect(result.source_counts.fts).toBe(0)
+    expect(result.source_counts.vector).toBe(0)
+    expect(result.source_counts.graph).toBeGreaterThan(0)
+    expect(result.results[0]?.session_id).toBe('sess-unit-graph')
+  })
+
   it('treats limit=0 as no limit', () => {
     insertTranscript(tmpDir, {
       session_id: 'sess-a',

@@ -6,6 +6,11 @@ import type {
   SourceAsset,
   TranscriptMessage,
 } from '@openmnemo/types'
+import type {
+  GraphAdapter,
+  GraphEdge as AdapterGraphEdge,
+  GraphNode as AdapterGraphNode,
+} from '../storage/graph/graph-adapter.js'
 
 import { contentHash, timestampPartition, truncate } from '../transcript/common.js'
 
@@ -37,6 +42,28 @@ export interface MemoryExtractionBundle {
   graph: {
     nodes: MemoryGraphNode[]
     edges: MemoryGraphEdge[]
+  }
+}
+
+function formatKindLabel(value: string): string {
+  return value.replace(/_/g, ' ')
+}
+
+function managedGraphMetadata(rootId: string): Record<string, string> {
+  return {
+    managed_by: TRANSCRIPT_MEMORY_EXTRACTOR,
+    managed_root_id: rootId,
+    managed_scope: 'session',
+  }
+}
+
+function withManagedGraphProperties(
+  rootId: string,
+  properties: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...properties,
+    ...managedGraphMetadata(rootId),
   }
 }
 
@@ -166,6 +193,7 @@ export function buildTranscriptExtractionBundle(
   const sourceAsset = buildTranscriptSourceAsset(manifest, cleanContent)
   const rawSegments = createTurnSegments(parsed, manifest)
   const partition = sourceAsset.partition
+  const sessionRootId = sessionNodeId(manifest)
 
   const memoryUnits = rawSegments.map((segment, index): MemoryUnit => ({
     id: `memory_unit:${manifest.client}:${manifest.project}:${manifest.session_id}:${String(index + 1).padStart(3, '0')}:${contentHash(segment.body)}`,
@@ -214,9 +242,10 @@ export function buildTranscriptExtractionBundle(
   }
 
   const sessionNode: MemoryGraphNode = {
-    id: sessionNodeId(manifest),
+    id: sessionRootId,
     labels: ['Session'],
-    properties: {
+    properties: withManagedGraphProperties(sessionRootId, {
+      entity_kind: 'session',
       client: manifest.client,
       project: manifest.project,
       session_id: manifest.session_id,
@@ -224,7 +253,7 @@ export function buildTranscriptExtractionBundle(
       started_at: manifest.started_at,
       cwd: manifest.cwd,
       branch: manifest.branch,
-    },
+    }),
   }
 
   const graphNodes: MemoryGraphNode[] = [
@@ -232,31 +261,37 @@ export function buildTranscriptExtractionBundle(
     {
       id: sourceAsset.id,
       labels: ['SourceAsset', 'Transcript'],
-      properties: {
+      properties: withManagedGraphProperties(sessionRootId, {
+        entity_kind: 'source asset',
+        asset_kind: formatKindLabel(sourceAsset.asset_kind),
         project: sourceAsset.project,
         title: sourceAsset.title,
         source_uri: sourceAsset.source_uri,
         import_ref: sourceAsset.import_ref,
-      },
+      }),
     },
     {
       id: archiveAnchor.id,
       labels: ['ArchiveAnchor'],
-      properties: {
+      properties: withManagedGraphProperties(sessionRootId, {
+        entity_kind: 'archive anchor',
         scope: archiveAnchor.scope,
         title: archiveAnchor.title,
         summary: archiveAnchor.summary,
-      },
+      }),
     },
     ...memoryUnits.map((unit) => ({
       id: unit.id,
       labels: ['MemoryUnit', 'DocumentChunk'],
-      properties: {
+      properties: withManagedGraphProperties(sessionRootId, {
+        entity_kind: 'memory unit',
         unit_type: unit.unit_type,
+        unit_type_display: formatKindLabel(unit.unit_type),
+        project: unit.project,
         title: unit.title,
         summary: unit.summary,
         source_ref: unit.source_ref,
-      },
+      }),
     })),
   ]
 
@@ -265,11 +300,13 @@ export function buildTranscriptExtractionBundle(
       from_id: sessionNode.id,
       to_id: sourceAsset.id,
       type: 'HAS_SOURCE_ASSET',
+      properties: withManagedGraphProperties(sessionRootId, {}),
     },
     {
       from_id: sessionNode.id,
       to_id: archiveAnchor.id,
       type: 'HAS_ARCHIVE_ANCHOR',
+      properties: withManagedGraphProperties(sessionRootId, {}),
     },
     ...memoryUnits.flatMap((unit, index) => {
       const edges: MemoryGraphEdge[] = [
@@ -277,19 +314,19 @@ export function buildTranscriptExtractionBundle(
           from_id: sessionNode.id,
           to_id: unit.id,
           type: 'CONTAINS_UNIT',
-          properties: { position: index + 1 },
+          properties: withManagedGraphProperties(sessionRootId, { position: index + 1 }),
         },
         {
           from_id: sourceAsset.id,
           to_id: unit.id,
           type: 'EMITS_UNIT',
-          properties: { source_ref: unit.source_ref ?? '' },
+          properties: withManagedGraphProperties(sessionRootId, { source_ref: unit.source_ref ?? '' }),
         },
         {
           from_id: archiveAnchor.id,
           to_id: unit.id,
           type: 'SUMMARIZES',
-          properties: { position: index + 1 },
+          properties: withManagedGraphProperties(sessionRootId, { position: index + 1 }),
         },
       ]
       if (index < memoryUnits.length - 1) {
@@ -297,6 +334,7 @@ export function buildTranscriptExtractionBundle(
           from_id: unit.id,
           to_id: memoryUnits[index + 1]!.id,
           type: 'NEXT_UNIT',
+          properties: withManagedGraphProperties(sessionRootId, {}),
         })
       }
       return edges
@@ -316,5 +354,52 @@ export function buildTranscriptExtractionBundle(
       nodes: graphNodes,
       edges: graphEdges,
     },
+  }
+}
+
+function toAdapterGraphNode(node: MemoryGraphNode): AdapterGraphNode {
+  return {
+    id: node.id,
+    labels: node.labels,
+    properties: node.properties,
+  }
+}
+
+function toAdapterGraphEdge(edge: MemoryGraphEdge): AdapterGraphEdge {
+  return {
+    fromId: edge.from_id,
+    toId: edge.to_id,
+    type: edge.type,
+    ...(edge.properties ? { properties: edge.properties } : {}),
+  }
+}
+
+function resolveExtractionRootId(bundle: MemoryExtractionBundle): string {
+  const sessionNode = bundle.graph.nodes.find((node) =>
+    node.labels.includes('Session')
+      && node.properties['session_id'] === bundle.session_id)
+
+  if (!sessionNode) {
+    throw new Error('MemoryExtractionBundle is missing its Session root node')
+  }
+
+  return sessionNode.id
+}
+
+export function syncExtractionBundleGraph(
+  graph: GraphAdapter,
+  bundle: MemoryExtractionBundle,
+): void {
+  graph.deleteManagedSubgraph({
+    managedBy: bundle.extractor,
+    managedRootId: resolveExtractionRootId(bundle),
+  })
+
+  for (const node of bundle.graph.nodes) {
+    graph.upsertNode(toAdapterGraphNode(node))
+  }
+
+  for (const edge of bundle.graph.edges) {
+    graph.upsertEdge(toAdapterGraphEdge(edge))
   }
 }

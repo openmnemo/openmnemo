@@ -15,6 +15,7 @@ import {
   appendJsonl,
   copyFile,
 } from '../../src/transcript/import.js'
+import { createGraphAdapter } from '../../src/storage/factory.js'
 
 function makeParsed(overrides: Partial<ParsedTranscript> = {}): ParsedTranscript {
   return {
@@ -299,6 +300,83 @@ describe('importTranscript', () => {
     const extraction = JSON.parse(readFileSync(result.global_extraction_path!, 'utf-8')) as Record<string, unknown>
     expect(extraction['session_id']).toBe('test-session')
     expect(Array.isArray((extraction['memory_units'] as unknown[]))).toBe(true)
+
+    const graph = createGraphAdapter({ indexDir: join(globalRoot, 'index') })
+    try {
+      const sessions = graph.findSessionsByEntity({
+        entityName: 'test session',
+        entityLabel: 'MemoryUnit',
+        depth: 1,
+        limit: 10,
+      })
+      expect(sessions).toHaveLength(1)
+      expect(sessions[0]!.properties['session_id']).toBe('test-session')
+    } finally {
+      graph.close()
+    }
+  })
+
+  it('replaces stale graph-derived runtime nodes on re-import of the same session', async () => {
+    const sourceFile = join(tmpDir, 'test-reimport.jsonl')
+    writeFileSync(sourceFile, '{"type":"test"}\n')
+
+    const first = await importTranscript(
+      makeParsed({
+        source_path: sourceFile,
+        messages: [
+          { role: 'user', text: 'alpha reimport phrase', timestamp: '2024-06-15T12:00:00Z' },
+          { role: 'assistant', text: 'first pass', timestamp: '2024-06-15T12:00:01Z' },
+        ],
+        tool_events: [],
+      }),
+      repoRoot,
+      globalRoot,
+      'my-project',
+      'none',
+      true,
+    )
+    const firstExtractionPath = first.global_extraction_path!
+
+    writeFileSync(sourceFile, '{"type":"test-updated"}\n')
+    await importTranscript(
+      makeParsed({
+        source_path: sourceFile,
+        messages: [
+          { role: 'user', text: 'beta reimport phrase', timestamp: '2024-06-15T12:00:00Z' },
+          { role: 'assistant', text: 'second pass', timestamp: '2024-06-15T12:00:01Z' },
+        ],
+        tool_events: [],
+      }),
+      repoRoot,
+      globalRoot,
+      'my-project',
+      'none',
+      true,
+    )
+
+    expect(existsSync(firstExtractionPath)).toBe(true)
+
+    const graph = createGraphAdapter({ indexDir: join(globalRoot, 'index') })
+    try {
+      const stale = graph.findSessionsByEntity({
+        entityName: 'alpha reimport phrase',
+        entityLabel: 'MemoryUnit',
+        depth: 1,
+        limit: 10,
+      })
+      const fresh = graph.findSessionsByEntity({
+        entityName: 'beta reimport phrase',
+        entityLabel: 'MemoryUnit',
+        depth: 1,
+        limit: 10,
+      })
+
+      expect(stale).toHaveLength(0)
+      expect(fresh).toHaveLength(1)
+      expect(fresh[0]!.properties['session_id']).toBe('test-session')
+    } finally {
+      graph.close()
+    }
   })
 
   it('imports without repo mirror', async () => {

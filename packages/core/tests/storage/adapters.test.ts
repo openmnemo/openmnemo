@@ -341,6 +341,105 @@ describe('createGraphAdapter', () => {
     }
   })
 
+  it('ignores technical labels, ids, and managed metadata when matching entity names', () => {
+    const adapter = createGraphAdapter({ indexDir: tmpDir })
+    try {
+      adapter.upsertNode({
+        id: 'session:semantic',
+        labels: ['Session'],
+        properties: { title: 'Semantic session', session_id: 'sess-semantic' },
+      })
+      adapter.upsertNode({
+        id: 'memory_unit:semantic:001',
+        labels: ['MemoryUnit', 'DocumentChunk'],
+        properties: {
+          entity_kind: 'memory unit',
+          unit_type: 'document_chunk',
+          unit_type_display: 'document chunk',
+          managed_by: 'deterministic-transcript-baseline',
+          managed_root_id: 'session:semantic',
+          managed_scope: 'session',
+          title: 'Authentication chunk',
+          summary: 'Cookie redirect handling',
+        },
+      })
+      adapter.upsertEdge({
+        fromId: 'session:semantic',
+        toId: 'memory_unit:semantic:001',
+        type: 'CONTAINS_UNIT',
+      })
+
+      const genericKind = adapter.findSessionsByEntity({
+        entityName: 'memory unit',
+        entityLabel: 'MemoryUnit',
+        depth: 1,
+      })
+      const genericType = adapter.findSessionsByEntity({
+        entityName: 'document chunk',
+        entityLabel: 'MemoryUnit',
+        depth: 1,
+      })
+      const semantic = adapter.findSessionsByEntity({
+        entityName: 'cookie redirect',
+        entityLabel: 'MemoryUnit',
+        depth: 1,
+      })
+
+      expect(genericKind).toEqual([])
+      expect(genericType).toEqual([])
+      expect(semantic.map(node => node.id)).toEqual(['session:semantic'])
+    } finally {
+      adapter.close()
+    }
+  })
+
+  it('deletes managed subgraph nodes for a session root while preserving the session node', () => {
+    const adapter = createGraphAdapter({ indexDir: tmpDir })
+    try {
+      adapter.upsertNode({
+        id: 'session:managed',
+        labels: ['Session'],
+        properties: { title: 'Managed session', session_id: 'sess-managed' },
+      })
+      adapter.upsertNode({
+        id: 'memory_unit:managed:001',
+        labels: ['MemoryUnit', 'DocumentChunk'],
+        properties: {
+          managed_by: 'deterministic-transcript-baseline',
+          managed_root_id: 'session:managed',
+          managed_scope: 'session',
+          title: 'Alpha chunk',
+          summary: 'alpha phrase',
+        },
+      })
+      adapter.upsertEdge({
+        fromId: 'session:managed',
+        toId: 'memory_unit:managed:001',
+        type: 'CONTAINS_UNIT',
+        properties: {
+          managed_by: 'deterministic-transcript-baseline',
+          managed_root_id: 'session:managed',
+          managed_scope: 'session',
+        },
+      })
+
+      adapter.deleteManagedSubgraph({
+        managedBy: 'deterministic-transcript-baseline',
+        managedRootId: 'session:managed',
+      })
+
+      expect(adapter.findRelated('session:managed', 1)).toEqual([])
+      const rows = adapter.query(`
+        SELECT COUNT(*) AS count
+        FROM graph_nodes
+        WHERE id = 'session:managed'
+      `) as Array<{ count: number }>
+      expect(rows[0]!.count).toBe(1)
+    } finally {
+      adapter.close()
+    }
+  })
+
   it('throws for neo4j (constructor throws Phase 1)', () => {
     expect(() => createGraphAdapter({ indexDir: '/tmp', graph_backend: 'neo4j' }))
       .toThrow('not implemented in Phase 1')

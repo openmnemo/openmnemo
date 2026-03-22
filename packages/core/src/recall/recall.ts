@@ -330,7 +330,17 @@ export function searchRecall(
 
 const RRF_K = 60
 const DEFAULT_VECTOR_DIMS = 1536
-const GRAPH_LABELS = ['Project', 'Technology', 'Concept', 'Person', 'Commit', 'Session'] as const
+const GRAPH_LABELS = [
+  'Project',
+  'Technology',
+  'Concept',
+  'Person',
+  'Commit',
+  'Session',
+  'SourceAsset',
+  'ArchiveAnchor',
+  'MemoryUnit',
+] as const
 
 interface SessionSearchRow extends SearchResult {
   raw_sha256: string

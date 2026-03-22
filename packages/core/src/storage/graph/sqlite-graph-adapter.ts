@@ -1,7 +1,13 @@
 import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { GraphAdapter, GraphNode, GraphEdge, FindSessionsByEntityOptions } from './graph-adapter.js'
+import type {
+  GraphAdapter,
+  GraphNode,
+  GraphEdge,
+  FindSessionsByEntityOptions,
+  ManagedSubgraphSelector,
+} from './graph-adapter.js'
 
 const CREATE_NODES_SQL = `
   CREATE TABLE IF NOT EXISTS graph_nodes (
@@ -25,6 +31,19 @@ const CREATE_INDEXES_SQL = `
   CREATE INDEX IF NOT EXISTS idx_graph_edges_from_id ON graph_edges(from_id);
   CREATE INDEX IF NOT EXISTS idx_graph_edges_to_id ON graph_edges(to_id);
 `
+
+const NON_SEARCHABLE_PROPERTY_KEYS = new Set([
+  'entity_kind',
+  'asset_kind',
+  'unit_type',
+  'unit_type_display',
+  'scope',
+  'managed_by',
+  'managed_root_id',
+  'managed_scope',
+])
+
+const LEGACY_DERIVED_SESSION_LABELS = ['SourceAsset', 'ArchiveAnchor', 'MemoryUnit'] as const
 
 function openDb(dbPath: string): InstanceType<typeof Database> {
   mkdirSync(dirname(dbPath), { recursive: true })
@@ -76,7 +95,8 @@ function collectSearchableStrings(value: unknown, bucket: string[]): void {
     return
   }
   if (value && typeof value === 'object') {
-    for (const nested of Object.values(value as Record<string, unknown>)) {
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      if (NON_SEARCHABLE_PROPERTY_KEYS.has(key)) continue
       collectSearchableStrings(nested, bucket)
     }
   }
@@ -86,9 +106,13 @@ function matchesEntityName(node: GraphNode, entityName: string): boolean {
   const normalized = entityName.trim().toLowerCase()
   if (!normalized) return true
 
-  const searchable = [node.id, ...node.labels]
+  const searchable: string[] = []
   collectSearchableStrings(node.properties, searchable)
   return searchable.some((value) => value.toLowerCase().includes(normalized))
+}
+
+function sqlPlaceholders(count: number): string {
+  return Array.from({ length: count }, () => '?').join(', ')
 }
 
 interface GraphNodeWithDepth {
@@ -122,7 +146,66 @@ export class SqliteGraphAdapter implements GraphAdapter {
       VALUES (?, ?, ?, ?)
       ON CONFLICT(from_id, to_id, type) DO UPDATE SET
         properties = excluded.properties
-    `).run(edge.fromId, edge.toId, edge.type, JSON.stringify(edge.properties ?? {}))
+      `).run(edge.fromId, edge.toId, edge.type, JSON.stringify(edge.properties ?? {}))
+  }
+
+  deleteManagedSubgraph(selector: ManagedSubgraphSelector): void {
+    const managedRows = this.db.prepare(`
+      SELECT DISTINCT id
+      FROM graph_nodes
+      WHERE id <> ?
+        AND json_extract(properties, '$.managed_by') = ?
+        AND json_extract(properties, '$.managed_root_id') = ?
+    `).all(
+      selector.managedRootId,
+      selector.managedBy,
+      selector.managedRootId,
+    ) as Array<{ id: string }>
+
+    const legacyLabelPlaceholders = sqlPlaceholders(LEGACY_DERIVED_SESSION_LABELS.length)
+    const legacyRows = this.db.prepare(`
+      SELECT DISTINCT graph_nodes.id
+      FROM graph_nodes
+      JOIN graph_edges
+        ON (graph_edges.from_id = ? AND graph_edges.to_id = graph_nodes.id)
+        OR (graph_edges.to_id = ? AND graph_edges.from_id = graph_nodes.id)
+      WHERE graph_nodes.id <> ?
+        AND EXISTS (
+          SELECT 1
+          FROM json_each(graph_nodes.labels)
+          WHERE json_each.value IN (${legacyLabelPlaceholders})
+        )
+    `).all(
+      selector.managedRootId,
+      selector.managedRootId,
+      selector.managedRootId,
+      ...LEGACY_DERIVED_SESSION_LABELS,
+    ) as Array<{ id: string }>
+
+    const nodeIds = [...new Set([...managedRows, ...legacyRows].map((row) => row.id))]
+    const deleteManagedSubgraph = this.db.transaction((ids: string[]) => {
+      this.db.prepare(`
+        DELETE FROM graph_edges
+        WHERE json_extract(properties, '$.managed_by') = ?
+          AND json_extract(properties, '$.managed_root_id') = ?
+      `).run(selector.managedBy, selector.managedRootId)
+
+      if (ids.length === 0) return
+
+      const placeholders = sqlPlaceholders(ids.length)
+      this.db.prepare(`
+        DELETE FROM graph_edges
+        WHERE from_id IN (${placeholders})
+          OR to_id IN (${placeholders})
+      `).run(...ids, ...ids)
+
+      this.db.prepare(`
+        DELETE FROM graph_nodes
+        WHERE id IN (${placeholders})
+      `).run(...ids)
+    })
+
+    deleteManagedSubgraph(nodeIds)
   }
 
   private findRelatedWithDepth(entityId: string, depth: number): GraphNodeWithDepth[] {
