@@ -1,0 +1,41 @@
+{
+  "schema_version": "transcript.full.v1",
+  "client": "claude",
+  "session_id": "34d2639b-f79a-4f65-b955-4c74108b4c22",
+  "title": "34d2639b-f79a-4f65-b955-4c74108b4c22",
+  "started_at": "2026-03-16T07:22:23Z",
+  "cwd": "D:\\demo1\\openmnemo",
+  "branch": "main",
+  "messages": [
+    {
+      "role": "user",
+      "text": "你好",
+      "timestamp": "2026-03-16T07:22:23Z"
+    },
+    {
+      "role": "user",
+      "text": "[Request interrupted by user]",
+      "timestamp": "2026-03-16T07:22:40Z"
+    }
+  ],
+  "tool_events": [],
+  "events": [
+    {
+      "kind": "message",
+      "role": "user",
+      "text": "你好",
+      "timestamp": "2026-03-16T07:22:23Z",
+      "sequence": 0,
+      "summary": "你好"
+    },
+    {
+      "kind": "message",
+      "role": "user",
+      "text": "[Request interrupted by user]",
+      "timestamp": "2026-03-16T07:22:40Z",
+      "sequence": 1,
+      "summary": "[Request interrupted by user]"
+    }
+  ],
+  "source_path": "C:/Users/ai/.claude/projects/D--demo1-openmnemo/34d2639b-f79a-4f65-b955-4c74108b4c22.jsonl"
+}

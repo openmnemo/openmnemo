@@ -4,7 +4,7 @@ project: openmnemo
 session_id: 019d0f3c-ca42-7ee1-bbe6-aed4bbe9cabe
 title: "rollout-2026-03-21T15-12-15-019d0f3c-ca42-7ee1-bbe6-aed4bbe9cabe"
 started_at: 2026-03-21T07:12:15Z
-imported_at: 2026-03-21T08:12:04Z
+imported_at: 2026-03-22T09:07:03Z
 cwd: "d:\\demo1\\openmnemo"
 branch: "main"
 raw_source_path: "C:/Users/ai/.codex/sessions/2026/03/21/rollout-2026-03-21T15-12-15-019d0f3c-ca42-7ee1-bbe6-aed4bbe9cabe.jsonl"
@@ -20,7 +20,7 @@ cleaning_mode: deterministic-code
 - Project: `openmnemo`
 - Session ID: `019d0f3c-ca42-7ee1-bbe6-aed4bbe9cabe`
 - Started At: `2026-03-21T07:12:15Z`
-- Imported At: `2026-03-21T08:12:04Z`
+- Imported At: `2026-03-22T09:07:03Z`
 - Raw SHA256: `74a93dfd621a86763b77078ee07e4bef7af014f8bf4582df53eddc7548636513`
 - Raw Source: `C:/Users/ai/.codex/sessions/2026/03/21/rollout-2026-03-21T15-12-15-019d0f3c-ca42-7ee1-bbe6-aed4bbe9cabe.jsonl`
 - Repo Raw Path: `Memory/06_transcripts/raw/codex/2026/03/019d0f3c-ca42-7ee1-bbe6-aed4bbe9cabe__74a93dfd.jsonl`

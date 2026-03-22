@@ -1,0 +1,41 @@
+{
+  "schema_version": "transcript.full.v1",
+  "client": "claude",
+  "session_id": "feff20f5-0af0-488a-bd13-9d4f0a50590a",
+  "title": "feff20f5-0af0-488a-bd13-9d4f0a50590a",
+  "started_at": "2026-03-16T07:59:01Z",
+  "cwd": "D:\\demo1\\openmnemo",
+  "branch": "main",
+  "messages": [
+    {
+      "role": "user",
+      "text": "你可以通过memorytree-workflow 这个skill  看看我们项目最佳的聊天记录是什么吗  ultrathink",
+      "timestamp": "2026-03-16T07:59:01Z"
+    },
+    {
+      "role": "user",
+      "text": "[Request interrupted by user]",
+      "timestamp": "2026-03-16T07:59:13Z"
+    }
+  ],
+  "tool_events": [],
+  "events": [
+    {
+      "kind": "message",
+      "role": "user",
+      "text": "你可以通过memorytree-workflow 这个skill  看看我们项目最佳的聊天记录是什么吗  ultrathink",
+      "timestamp": "2026-03-16T07:59:01Z",
+      "sequence": 0,
+      "summary": "你可以通过memorytree-workflow 这个skill 看看我们项目最佳的聊天记录是什么吗 ultrathink"
+    },
+    {
+      "kind": "message",
+      "role": "user",
+      "text": "[Request interrupted by user]",
+      "timestamp": "2026-03-16T07:59:13Z",
+      "sequence": 1,
+      "summary": "[Request interrupted by user]"
+    }
+  ],
+  "source_path": "C:/Users/ai/.claude/projects/D--demo1-openmnemo/feff20f5-0af0-488a-bd13-9d4f0a50590a.jsonl"
+}

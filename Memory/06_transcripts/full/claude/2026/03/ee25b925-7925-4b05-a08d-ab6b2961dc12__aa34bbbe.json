@@ -1,0 +1,41 @@
+{
+  "schema_version": "transcript.full.v1",
+  "client": "claude",
+  "session_id": "ee25b925-7925-4b05-a08d-ab6b2961dc12",
+  "title": "ee25b925-7925-4b05-a08d-ab6b2961dc12",
+  "started_at": "2026-03-16T07:37:50Z",
+  "cwd": "D:\\demo1\\openmnemo",
+  "branch": "main",
+  "messages": [
+    {
+      "role": "user",
+      "text": "你好",
+      "timestamp": "2026-03-16T07:37:50Z"
+    },
+    {
+      "role": "assistant",
+      "text": "Request timed out",
+      "timestamp": "2026-03-16T07:42:49Z"
+    }
+  ],
+  "tool_events": [],
+  "events": [
+    {
+      "kind": "message",
+      "role": "user",
+      "text": "你好",
+      "timestamp": "2026-03-16T07:37:50Z",
+      "sequence": 0,
+      "summary": "你好"
+    },
+    {
+      "kind": "message",
+      "role": "assistant",
+      "text": "Request timed out",
+      "timestamp": "2026-03-16T07:42:49Z",
+      "sequence": 1,
+      "summary": "Request timed out"
+    }
+  ],
+  "source_path": "C:/Users/ai/.claude/projects/D--demo1-openmnemo/ee25b925-7925-4b05-a08d-ab6b2961dc12.jsonl"
+}
