@@ -278,6 +278,69 @@ describe('createGraphAdapter', () => {
     }
   })
 
+  it('finds related sessions by entity name and label', () => {
+    const adapter = createGraphAdapter({ indexDir: tmpDir })
+    try {
+      adapter.upsertNode({ id: 'project:openmnemo', labels: ['Project'], properties: { name: 'OpenMnemo' } })
+      adapter.upsertNode({ id: 'tech:sqlite', labels: ['Technology'], properties: { name: 'SQLite' } })
+      adapter.upsertNode({ id: 'concept:memory', labels: ['Concept'], properties: { name: 'Memory Graph' } })
+      adapter.upsertNode({ id: 'session:architecture', labels: ['Session'], properties: { title: 'Architecture review', session_id: 'sess-arch' } })
+      adapter.upsertNode({ id: 'session:retrieval', labels: ['Session'], properties: { title: 'Retrieval design', session_id: 'sess-recall' } })
+
+      adapter.upsertEdge({ fromId: 'session:architecture', toId: 'project:openmnemo', type: 'RELATED_TO' })
+      adapter.upsertEdge({ fromId: 'project:openmnemo', toId: 'tech:sqlite', type: 'USES' })
+      adapter.upsertEdge({ fromId: 'session:retrieval', toId: 'concept:memory', type: 'CONTAINS' })
+
+      const byTechnology = adapter.findSessionsByEntity({
+        entityName: 'sqlite',
+        entityLabel: 'Technology',
+        depth: 2,
+      })
+      expect(byTechnology.map(node => node.id)).toEqual(['session:architecture'])
+
+      const byProject = adapter.findSessionsByEntity({
+        entityName: 'open',
+        entityLabel: 'Project',
+        depth: 1,
+      })
+      expect(byProject.map(node => node.id)).toEqual(['session:architecture'])
+
+      const byConcept = adapter.findSessionsByEntity({
+        entityName: 'memory',
+        entityLabel: 'Concept',
+      })
+      expect(byConcept.map(node => node.id)).toEqual(['session:retrieval'])
+    } finally {
+      adapter.close()
+    }
+  })
+
+  it('deduplicates and sorts sessions by shortest entity distance', () => {
+    const adapter = createGraphAdapter({ indexDir: tmpDir })
+    try {
+      adapter.upsertNode({ id: 'project:openmnemo', labels: ['Project'], properties: { name: 'OpenMnemo' } })
+      adapter.upsertNode({ id: 'project:openmnemo-api', labels: ['Project'], properties: { name: 'OpenMnemo API' } })
+      adapter.upsertNode({ id: 'tech:sqlite', labels: ['Technology'], properties: { name: 'SQLite' } })
+      adapter.upsertNode({ id: 'session:direct', labels: ['Session'], properties: { title: 'Direct project session' } })
+      adapter.upsertNode({ id: 'session:indirect', labels: ['Session'], properties: { title: 'Indirect tech session' } })
+
+      adapter.upsertEdge({ fromId: 'session:direct', toId: 'project:openmnemo', type: 'RELATED_TO' })
+      adapter.upsertEdge({ fromId: 'session:direct', toId: 'project:openmnemo-api', type: 'RELATED_TO' })
+      adapter.upsertEdge({ fromId: 'project:openmnemo-api', toId: 'tech:sqlite', type: 'USES' })
+      adapter.upsertEdge({ fromId: 'session:indirect', toId: 'tech:sqlite', type: 'RELATED_TO' })
+
+      const sessions = adapter.findSessionsByEntity({
+        entityName: 'openmnemo',
+        entityLabel: 'Project',
+        depth: 2,
+      })
+
+      expect(sessions.map(node => node.id)).toEqual(['session:direct', 'session:indirect'])
+    } finally {
+      adapter.close()
+    }
+  })
+
   it('throws for neo4j (constructor throws Phase 1)', () => {
     expect(() => createGraphAdapter({ indexDir: '/tmp', graph_backend: 'neo4j' }))
       .toThrow('not implemented in Phase 1')

@@ -112,7 +112,7 @@ export type { VectorAdapter, VectorMetadata, VectorResult } from './storage/vect
 export { SqliteVecAdapter } from './storage/vector/sqlite-vec-adapter.js'
 
 // Graph adapter
-export type { GraphAdapter, GraphNode, GraphEdge } from './storage/graph/graph-adapter.js'
+export type { GraphAdapter, GraphNode, GraphEdge, FindSessionsByEntityOptions } from './storage/graph/graph-adapter.js'
 export { SqliteGraphAdapter } from './storage/graph/sqlite-graph-adapter.js'
 
 // Storage factory

@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
-import type { GraphAdapter, GraphNode, GraphEdge } from './graph-adapter.js'
+import type { GraphAdapter, GraphNode, GraphEdge, FindSessionsByEntityOptions } from './graph-adapter.js'
 
 const CREATE_NODES_SQL = `
   CREATE TABLE IF NOT EXISTS graph_nodes (
@@ -60,6 +60,42 @@ function toGraphNode(row: { id: string, labels: string, properties: string }): G
   }
 }
 
+function nodeHasLabel(node: GraphNode, label: string): boolean {
+  const normalized = label.trim().toLowerCase()
+  return node.labels.some((value) => value.toLowerCase() === normalized)
+}
+
+function collectSearchableStrings(value: unknown, bucket: string[]): void {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed) bucket.push(trimmed)
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectSearchableStrings(item, bucket)
+    return
+  }
+  if (value && typeof value === 'object') {
+    for (const nested of Object.values(value as Record<string, unknown>)) {
+      collectSearchableStrings(nested, bucket)
+    }
+  }
+}
+
+function matchesEntityName(node: GraphNode, entityName: string): boolean {
+  const normalized = entityName.trim().toLowerCase()
+  if (!normalized) return true
+
+  const searchable = [node.id, ...node.labels]
+  collectSearchableStrings(node.properties, searchable)
+  return searchable.some((value) => value.toLowerCase().includes(normalized))
+}
+
+interface GraphNodeWithDepth {
+  node: GraphNode
+  depth: number
+}
+
 export class SqliteGraphAdapter implements GraphAdapter {
   private readonly db: InstanceType<typeof Database>
 
@@ -89,7 +125,7 @@ export class SqliteGraphAdapter implements GraphAdapter {
     `).run(edge.fromId, edge.toId, edge.type, JSON.stringify(edge.properties ?? {}))
   }
 
-  findRelated(entityId: string, depth: number): GraphNode[] {
+  private findRelatedWithDepth(entityId: string, depth: number): GraphNodeWithDepth[] {
     if (depth <= 0) return []
 
     const rows = this.db.prepare(`
@@ -121,7 +157,61 @@ export class SqliteGraphAdapter implements GraphAdapter {
       ORDER BY min_depth ASC, graph_nodes.id ASC
     `).all(entityId, depth, entityId) as Array<{ id: string, labels: string, properties: string, min_depth: number }>
 
-    return rows.map(toGraphNode)
+    return rows.map((row) => ({
+      node: toGraphNode(row),
+      depth: row.min_depth,
+    }))
+  }
+
+  findRelated(entityId: string, depth: number): GraphNode[] {
+    return this.findRelatedWithDepth(entityId, depth).map((match) => match.node)
+  }
+
+  findSessionsByEntity(options: FindSessionsByEntityOptions = {}): GraphNode[] {
+    const entityName = options.entityName?.trim() ?? ''
+    const entityLabel = options.entityLabel?.trim() ?? ''
+    const depth = options.depth ?? 2
+    const limit = options.limit ?? 20
+
+    if (!entityName && !entityLabel) return []
+    if (limit <= 0) return []
+
+    const nodes = this.db.prepare(`
+      SELECT id, labels, properties
+      FROM graph_nodes
+      ORDER BY id ASC
+    `).all() as Array<{ id: string, labels: string, properties: string }>
+
+    const matchedEntities = nodes
+      .map(toGraphNode)
+      .filter((node) => {
+        if (entityLabel && !nodeHasLabel(node, entityLabel)) return false
+        return matchesEntityName(node, entityName)
+      })
+
+    const sessions = new Map<string, GraphNodeWithDepth>()
+
+    for (const entity of matchedEntities) {
+      if (nodeHasLabel(entity, 'Session')) {
+        const existing = sessions.get(entity.id)
+        if (!existing || existing.depth > 0) {
+          sessions.set(entity.id, { node: entity, depth: 0 })
+        }
+      }
+
+      for (const related of this.findRelatedWithDepth(entity.id, depth)) {
+        if (!nodeHasLabel(related.node, 'Session')) continue
+        const existing = sessions.get(related.node.id)
+        if (!existing || related.depth < existing.depth) {
+          sessions.set(related.node.id, related)
+        }
+      }
+    }
+
+    return [...sessions.values()]
+      .sort((left, right) => left.depth - right.depth || left.node.id.localeCompare(right.node.id))
+      .slice(0, limit)
+      .map((match) => match.node)
   }
 
   query(statement: string): unknown[] {
