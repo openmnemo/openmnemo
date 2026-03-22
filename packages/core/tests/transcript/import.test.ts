@@ -291,6 +291,14 @@ describe('importTranscript', () => {
     expect(existsSync(join(repoRoot, result.repo_raw_path))).toBe(true)
     expect(existsSync(join(repoRoot, result.repo_clean_path))).toBe(true)
     expect(existsSync(join(repoRoot, result.repo_manifest_path))).toBe(true)
+    expect(result.repo_extraction_path).toBeTruthy()
+    expect(result.global_extraction_path).toBeTruthy()
+    expect(existsSync(join(repoRoot, result.repo_extraction_path!))).toBe(true)
+    expect(existsSync(result.global_extraction_path!)).toBe(true)
+
+    const extraction = JSON.parse(readFileSync(result.global_extraction_path!, 'utf-8')) as Record<string, unknown>
+    expect(extraction['session_id']).toBe('test-session')
+    expect(Array.isArray((extraction['memory_units'] as unknown[]))).toBe(true)
   })
 
   it('imports without repo mirror', async () => {
@@ -303,7 +311,9 @@ describe('importTranscript', () => {
     expect(result.repo_raw_path).toBe('')
     expect(result.repo_clean_path).toBe('')
     expect(result.repo_manifest_path).toBe('')
+    expect(result.repo_extraction_path).toBe('')
     expect(result.repo_mirror_enabled).toBe(false)
+    expect(result.global_extraction_path).toBeTruthy()
   })
 
   it('preserves imported_at on idempotent re-import', async () => {

@@ -41,9 +41,11 @@ export interface ManifestEntry {
   global_raw_path: string
   global_clean_path: string
   global_manifest_path: string
+  global_extraction_path?: string
   repo_raw_path: string
   repo_clean_path: string
   repo_manifest_path: string
+  repo_extraction_path?: string
   message_count: number
   tool_event_count: number
   cleaning_mode: string

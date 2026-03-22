@@ -88,6 +88,14 @@ describe('integration: parse → import → verify', () => {
     expect(manifestContent.client).toBe('codex')
     expect(manifestContent.project).toBe('myproject')
 
+    // 8.5 Verify extracted memory bundle written
+    expect(manifest.repo_extraction_path).toBeTruthy()
+    expect(manifest.global_extraction_path).toBeTruthy()
+    expect(existsSync(join(repoRoot, manifest.repo_extraction_path!))).toBe(true)
+    const extraction = JSON.parse(readFileSync(manifest.global_extraction_path!, 'utf-8')) as Record<string, unknown>
+    expect(extraction['session_id']).toBe('sess-001')
+    expect(Array.isArray(extraction['memory_units'] as unknown[])).toBe(true)
+
     // 9. Verify SQLite index updated
     const dbPath = join(globalRoot, 'index', 'search.sqlite')
     expect(existsSync(dbPath)).toBe(true)

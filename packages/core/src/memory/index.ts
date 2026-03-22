@@ -22,6 +22,9 @@ export {
   isMemoryUnit,
   isSourceAsset,
   isArchiveAnchor,
+  isMemoryGraphNode,
+  isMemoryGraphEdge,
+  isMemoryExtractionBundle,
   isDataLayerSearchQuery,
   isDataLayerSearchHit,
   isDataLayerSearchResponse,
@@ -38,3 +41,10 @@ export {
 
 export type { DataLayerAPI, DataLayerDependencies } from './data-layer-api.js'
 export { createDataLayerAPI } from './data-layer-api.js'
+export type { MemoryGraphNode, MemoryGraphEdge, MemoryExtractionBundle } from './extraction.js'
+export {
+  TRANSCRIPT_MEMORY_EXTRACTION_VERSION,
+  TRANSCRIPT_MEMORY_EXTRACTOR,
+  buildTranscriptSourceAsset,
+  buildTranscriptExtractionBundle,
+} from './extraction.js'

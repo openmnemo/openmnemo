@@ -9,6 +9,7 @@ import { dirname, extname, join, relative } from 'node:path'
 import type { ManifestEntry, ParsedTranscript } from '@openmnemo/types'
 import { toPosixPath } from '../utils/path.js'
 import { buildCommitLayer } from '../utils/exec.js'
+import { buildTranscriptExtractionBundle } from '../memory/extraction.js'
 import {
   loadJson,
   normalizeTimestamp,
@@ -18,6 +19,11 @@ import {
   yamlEscape,
 } from './common.js'
 import { upsertSearchIndex } from './db.js'
+
+type TranscriptImportManifest = ManifestEntry & {
+  global_extraction_path?: string
+  repo_extraction_path?: string
+}
 
 export async function importTranscript(
   parsed: ParsedTranscript,
@@ -42,18 +48,20 @@ export async function importTranscript(
   const repoRawPath = join(repoRoot, 'raw', parsed.client, yearToken, monthToken, `${artifactStem}${sourceSuffix}`)
   const repoCleanPath = join(repoRoot, 'clean', parsed.client, yearToken, monthToken, `${artifactStem}.md`)
   const repoManifestPath = join(repoRoot, 'manifests', parsed.client, yearToken, monthToken, `${artifactStem}.json`)
+  const repoExtractionPath = join(repoRoot, 'extracted', parsed.client, yearToken, monthToken, `${artifactStem}.memory.json`)
 
   const globalRawPath = join(globalRoot, 'raw', parsed.client, projectSlug, yearToken, monthToken, `${artifactStem}${sourceSuffix}`)
   const globalCleanPath = join(globalRoot, 'clean', parsed.client, projectSlug, yearToken, monthToken, `${artifactStem}.md`)
   const globalManifestPath = join(globalRoot, 'index', 'manifests', parsed.client, projectSlug, yearToken, monthToken, `${artifactStem}.json`)
+  const globalExtractionPath = join(globalRoot, 'index', 'extracted', parsed.client, projectSlug, yearToken, monthToken, `${artifactStem}.memory.json`)
   const globalEventLogPath = join(globalRoot, 'index', 'sessions.jsonl')
   const globalDbPath = join(globalRoot, 'index', 'search.sqlite')
 
-  for (const p of [globalRawPath, globalCleanPath, globalManifestPath, globalEventLogPath, globalDbPath]) {
+  for (const p of [globalRawPath, globalCleanPath, globalManifestPath, globalExtractionPath, globalEventLogPath, globalDbPath]) {
     mkdirSync(dirname(p), { recursive: true })
   }
   if (mirrorToRepo) {
-    for (const p of [repoRawPath, repoCleanPath, repoManifestPath]) {
+    for (const p of [repoRawPath, repoCleanPath, repoManifestPath, repoExtractionPath]) {
       mkdirSync(dirname(p), { recursive: true })
     }
   }
@@ -63,7 +71,7 @@ export async function importTranscript(
   }
   copyFile(parsed.source_path, globalRawPath)
 
-  let manifest: ManifestEntry = {
+  let manifest: TranscriptImportManifest = {
     client: parsed.client,
     project: projectSlug,
     session_id: parsed.session_id,
@@ -78,9 +86,11 @@ export async function importTranscript(
     repo_raw_path: mirrorToRepo ? toPosixPath(relative(root, repoRawPath)) : '',
     repo_clean_path: mirrorToRepo ? toPosixPath(relative(root, repoCleanPath)) : '',
     repo_manifest_path: mirrorToRepo ? toPosixPath(relative(root, repoManifestPath)) : '',
+    repo_extraction_path: mirrorToRepo ? toPosixPath(relative(root, repoExtractionPath)) : '',
     global_raw_path: toPosixPath(globalRawPath),
     global_clean_path: toPosixPath(globalCleanPath),
     global_manifest_path: toPosixPath(globalManifestPath),
+    global_extraction_path: toPosixPath(globalExtractionPath),
     message_count: parsed.messages.length,
     tool_event_count: parsed.tool_events.length,
     cleaning_mode: 'deterministic-code',
@@ -103,9 +113,21 @@ export async function importTranscript(
   if (appendToEventLog) {
     appendJsonl(globalEventLogPath, manifestRecord)
   }
+
+  const contentText = readFileSync(globalCleanPath, 'utf-8')
+  const commitLayer = buildCommitLayer(parsed.cwd)
+  const extractionBundle = buildTranscriptExtractionBundle(
+    parsed,
+    { ...manifest, content: contentText, commit_layer: commitLayer },
+    contentText,
+  )
+
+  if (mirrorToRepo) {
+    writeJson(repoExtractionPath, extractionBundle as unknown as Record<string, unknown>)
+  }
+  writeJson(globalExtractionPath, extractionBundle as unknown as Record<string, unknown>)
+
   try {
-    const contentText = readFileSync(globalCleanPath, 'utf-8')
-    const commitLayer = buildCommitLayer(parsed.cwd)
     upsertSearchIndex(globalDbPath, { ...manifest, content: contentText, commit_layer: commitLayer })
   } catch {
     // Non-fatal: search index failure should not abort the import

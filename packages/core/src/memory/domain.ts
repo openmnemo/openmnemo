@@ -23,6 +23,7 @@ import type {
   SourceAsset,
   SourceAssetKind,
 } from '@openmnemo/types'
+import type { MemoryExtractionBundle, MemoryGraphEdge, MemoryGraphNode } from './extraction.js'
 
 export const MEMORY_UNIT_TYPES = [
   'fact',
@@ -255,6 +256,40 @@ export function isArchiveAnchor(value: unknown): value is ArchiveAnchor {
 export function isDataLayerSearchQuery(value: unknown): value is DataLayerSearchQuery {
   return isRetrievalQuery(value)
     && (!isRecord(value) || value.target === undefined || isDataLayerSearchTarget(value.target))
+}
+
+export function isMemoryGraphNode(value: unknown): value is MemoryGraphNode {
+  return isRecord(value)
+    && hasNonEmptyString(value.id)
+    && isStringArray(value.labels)
+    && isRecord(value.properties)
+}
+
+export function isMemoryGraphEdge(value: unknown): value is MemoryGraphEdge {
+  return isRecord(value)
+    && hasNonEmptyString(value.from_id)
+    && hasNonEmptyString(value.to_id)
+    && hasNonEmptyString(value.type)
+    && (value.properties === undefined || isRecord(value.properties))
+}
+
+export function isMemoryExtractionBundle(value: unknown): value is MemoryExtractionBundle {
+  const graph = isRecord(value) && isRecord(value.graph) ? value.graph : null
+  return isRecord(value)
+    && hasNonEmptyString(value.extraction_version)
+    && hasNonEmptyString(value.extractor)
+    && hasNonEmptyString(value.generated_at)
+    && hasNonEmptyString(value.project)
+    && hasNonEmptyString(value.session_id)
+    && isSourceAsset(value.source_asset)
+    && Array.isArray(value.memory_units)
+    && value.memory_units.every(isMemoryUnit)
+    && isArchiveAnchor(value.archive_anchor)
+    && graph !== null
+    && Array.isArray(graph.nodes)
+    && graph.nodes.every(isMemoryGraphNode)
+    && Array.isArray(graph.edges)
+    && graph.edges.every(isMemoryGraphEdge)
 }
 
 export function isDataLayerSearchHit(value: unknown): value is DataLayerSearchHit {

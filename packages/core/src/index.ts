@@ -144,6 +144,9 @@ export {
   isMemoryUnit,
   isSourceAsset,
   isArchiveAnchor,
+  isMemoryGraphNode,
+  isMemoryGraphEdge,
+  isMemoryExtractionBundle,
   isDataLayerSearchQuery,
   isDataLayerSearchHit,
   isDataLayerSearchResponse,
@@ -157,8 +160,18 @@ export {
   compareRetrievalReferences,
   dedupeRetrievalReferences,
   createDataLayerAPI,
+  TRANSCRIPT_MEMORY_EXTRACTION_VERSION,
+  TRANSCRIPT_MEMORY_EXTRACTOR,
+  buildTranscriptSourceAsset,
+  buildTranscriptExtractionBundle,
 } from './memory/index.js'
-export type { DataLayerAPI, DataLayerDependencies } from './memory/index.js'
+export type {
+  DataLayerAPI,
+  DataLayerDependencies,
+  MemoryGraphNode,
+  MemoryGraphEdge,
+  MemoryExtractionBundle,
+} from './memory/index.js'
 
 // Utils
 export { toPosixPath } from './utils/path.js'
