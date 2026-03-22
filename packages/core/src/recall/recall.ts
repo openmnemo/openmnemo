@@ -4,7 +4,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs'
-import { resolve, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 import Database from 'better-sqlite3'
 
@@ -12,8 +12,10 @@ import { slugify } from '../transcript/common.js'
 import { defaultGlobalTranscriptRoot, discoverSourceFiles, transcriptMatchesRepo } from '../transcript/discover.js'
 import { importTranscript, transcriptHasContent } from '../transcript/import.js'
 import { parseTranscript } from '../transcript/parse.js'
-import { searchTranscripts, searchTranscriptsByColumns } from '../transcript/db.js'
+import { searchTranscriptsByColumns, sanitizeFtsQuery } from '../transcript/db.js'
 import type { SearchResult } from '../transcript/db.js'
+import { createGraphAdapter } from '../storage/factory.js'
+import type { GraphNode } from '../storage/graph/graph-adapter.js'
 import { toPosixPath } from '../utils/path.js'
 
 // ---------------------------------------------------------------------------
@@ -278,21 +280,26 @@ export function formatText(payload: RecallResult): string {
 // ---------------------------------------------------------------------------
 
 export interface SearchRecallResult {
-  layer: 1 | 2 | 3
+  mode: 'mixed'
+  source_counts: {
+    fts: number
+    vector: number
+    graph: number
+  }
   results: SearchResult[]
 }
 
 /**
- * Three-layer search over the transcript index:
- *   Layer 1 — commit_layer (git commit messages + changed files)
- *   Layer 2 — title, cwd, branch (metadata, existing FTS behaviour)
- *   Layer 3 — content (full clean markdown text)
+ * Session-level mixed retrieval over the transcript index.
+ * Phase 0 fuses:
+ *   - FTS recall (commit/meta/content)
+ *   - deterministic local vector recall over session text
+ *   - graph recall from entity/session links when graph data exists
  *
- * Returns results from the first layer that has matches.
- *
- * NOTE: Layer 1 returns empty results until task 1.2 populates commit_layer
- * during import. This is intentional — the layer structure is in place for
- * when commit data becomes available.
+ * Results are merged with Reciprocal Rank Fusion (RRF) and returned as
+ * session-level SearchResult rows. In Phase 1.6+, the vector / graph inputs
+ * can move from transcript/session scope to memory-unit scope without changing
+ * the public search contract here.
  */
 export function searchRecall(
   globalRoot: string,
@@ -300,13 +307,268 @@ export function searchRecall(
   limit = 20,
 ): SearchRecallResult {
   const dbPath = join(globalRoot, 'index', 'search.sqlite')
+  const effectiveLimit = limit > 0 ? limit : Number.MAX_SAFE_INTEGER
+  const rows = loadSessionRows(dbPath)
+  const fts = searchFtsRecall(dbPath, query, effectiveLimit)
+  const vector = searchVectorRecall(rows, query, effectiveLimit)
+  const graph = searchGraphRecall(dirname(dbPath), rows, query, effectiveLimit)
 
-  const layer1 = searchTranscriptsByColumns(dbPath, query, ['commit_layer'], limit)
-  if (layer1.length > 0) return { layer: 1, results: layer1 }
+  return {
+    mode: 'mixed',
+    source_counts: {
+      fts: fts.length,
+      vector: vector.length,
+      graph: graph.length,
+    },
+    results: fuseRankedResults([fts, vector, graph], effectiveLimit),
+  }
+}
 
-  const layer2 = searchTranscripts(dbPath, query, limit)
-  if (layer2.length > 0) return { layer: 2, results: layer2 }
+// ---------------------------------------------------------------------------
+// Mixed retrieval helpers
+// ---------------------------------------------------------------------------
 
-  const layer3 = searchTranscriptsByColumns(dbPath, query, ['content'], limit)
-  return { layer: 3, results: layer3 }
+const RRF_K = 60
+const DEFAULT_VECTOR_DIMS = 1536
+const GRAPH_LABELS = ['Project', 'Technology', 'Concept', 'Person', 'Commit', 'Session'] as const
+
+interface SessionSearchRow extends SearchResult {
+  raw_sha256: string
+  content: string
+  commit_layer: string
+}
+
+function compareSearchResults(left: SearchResult, right: SearchResult): number {
+  return right.started_at.localeCompare(left.started_at)
+    || left.project.localeCompare(right.project)
+    || left.session_id.localeCompare(right.session_id)
+}
+
+function sessionKey(result: Pick<SearchResult, 'client' | 'project' | 'session_id'>): string {
+  return [result.client, result.project, result.session_id].join('\u0000')
+}
+
+function toSearchResult(row: SessionSearchRow): SearchResult {
+  return {
+    client: row.client,
+    project: row.project,
+    session_id: row.session_id,
+    title: row.title,
+    cwd: row.cwd,
+    branch: row.branch,
+    started_at: row.started_at,
+  }
+}
+
+function normalizeSearchResults(results: SearchResult[], limit: number): SearchResult[] {
+  const deduped = new Map<string, SearchResult>()
+  for (const result of results) {
+    const key = sessionKey(result)
+    if (!deduped.has(key)) deduped.set(key, result)
+  }
+  return [...deduped.values()].slice(0, limit)
+}
+
+function fuseRankedResults(
+  rankedLists: SearchResult[][],
+  limit: number,
+): SearchResult[] {
+  const scores = new Map<string, { result: SearchResult, score: number }>()
+
+  for (const list of rankedLists) {
+    list.forEach((result, index) => {
+      const key = sessionKey(result)
+      const entry = scores.get(key)
+      const rrf = 1 / (RRF_K + index + 1)
+      if (entry) {
+        entry.score += rrf
+      } else {
+        scores.set(key, { result, score: rrf })
+      }
+    })
+  }
+
+  return [...scores.values()]
+    .sort((left, right) =>
+      right.score - left.score
+      || compareSearchResults(left.result, right.result))
+    .slice(0, limit)
+    .map((entry) => entry.result)
+}
+
+function searchFtsRecall(dbPath: string, query: string, limit: number): SearchResult[] {
+  const commit = searchTranscriptsByColumns(dbPath, query, ['commit_layer'], limit)
+  const meta = searchTranscriptsByColumns(dbPath, query, ['title', 'cwd', 'branch'], limit)
+  const content = searchTranscriptsByColumns(dbPath, query, ['content'], limit)
+  return fuseRankedResults([commit, meta, content], limit)
+}
+
+function loadSessionRows(dbPath: string): SessionSearchRow[] {
+  if (!existsSync(dbPath)) return []
+
+  const db = new Database(dbPath, { readonly: true })
+  try {
+    const rows = db.prepare(`
+      SELECT
+        client,
+        project,
+        session_id,
+        raw_sha256,
+        title,
+        cwd,
+        branch,
+        started_at,
+        content,
+        commit_layer
+      FROM transcripts
+      ORDER BY started_at DESC
+    `).all() as SessionSearchRow[]
+
+    const deduped = new Map<string, SessionSearchRow>()
+    for (const row of rows) {
+      const key = sessionKey(row)
+      if (!deduped.has(key)) deduped.set(key, row)
+    }
+    return [...deduped.values()]
+  } catch {
+    return []
+  } finally {
+    db.close()
+  }
+}
+
+function hashToken(token: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < token.length; i++) {
+    hash ^= token.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function deterministicTextEmbedding(text: string, dimensions = DEFAULT_VECTOR_DIMS): number[] {
+  const sanitized = sanitizeFtsQuery(text).toLowerCase()
+  const tokens = sanitized ? sanitized.split(/\s+/).filter(Boolean) : []
+  if (tokens.length === 0) return Array(dimensions).fill(0)
+
+  const vector = Array(dimensions).fill(0)
+  for (const token of tokens) {
+    const hash = hashToken(token)
+    const index = hash % dimensions
+    const sign = (hash & 1) === 0 ? 1 : -1
+    vector[index] += sign
+  }
+
+  const norm = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0))
+  if (norm === 0) return vector
+  return vector.map((value) => value / norm)
+}
+
+function cosineSimilarity(left: number[], right: number[]): number {
+  let score = 0
+  for (let index = 0; index < left.length; index++) {
+    score += left[index]! * right[index]!
+  }
+  return score
+}
+
+function isZeroVector(vector: number[]): boolean {
+  return vector.every((value) => value === 0)
+}
+
+function searchVectorRecall(rows: SessionSearchRow[], query: string, limit: number): SearchResult[] {
+  if (limit <= 0 || rows.length === 0) return []
+
+  const queryEmbedding = deterministicTextEmbedding(query)
+  if (isZeroVector(queryEmbedding)) return []
+
+  return rows
+    .map((row) => {
+      const body = [row.title, row.content, row.branch, row.cwd, row.commit_layer]
+        .filter(Boolean)
+        .join('\n')
+      return {
+        result: toSearchResult(row),
+        score: cosineSimilarity(queryEmbedding, deterministicTextEmbedding(body)),
+      }
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || compareSearchResults(left.result, right.result))
+    .slice(0, limit)
+    .map((entry) => entry.result)
+}
+
+function extractGraphQueries(query: string): string[] {
+  const sanitized = sanitizeFtsQuery(query)
+  if (!sanitized) return []
+
+  const unique = new Set<string>()
+  unique.add(sanitized)
+  for (const token of sanitized.split(/\s+/)) {
+    const trimmed = token.trim()
+    if (trimmed.length >= 3) unique.add(trimmed)
+  }
+
+  return [...unique].sort((left, right) => right.length - left.length).slice(0, 6)
+}
+
+function searchGraphRecall(
+  indexDir: string,
+  rows: SessionSearchRow[],
+  query: string,
+  limit: number,
+): SearchResult[] {
+  if (limit <= 0 || rows.length === 0) return []
+
+  const rowsBySession = new Map(rows.map((row) => [sessionKey(row), row]))
+  const rowsBySessionId = new Map<string, SessionSearchRow[]>()
+  for (const row of rows) {
+    const current = rowsBySessionId.get(row.session_id) ?? []
+    current.push(row)
+    rowsBySessionId.set(row.session_id, current)
+  }
+
+  const graph = createGraphAdapter({ indexDir })
+  try {
+    const results: SearchResult[] = []
+    for (const graphQuery of extractGraphQueries(query)) {
+      for (const label of GRAPH_LABELS) {
+        const sessions = graph.findSessionsByEntity({
+          entityName: graphQuery,
+          entityLabel: label,
+          depth: 2,
+          limit,
+        })
+        for (const session of sessions) {
+          const resolved = resolveGraphSession(session, rowsBySession, rowsBySessionId)
+          if (resolved) results.push(resolved)
+        }
+      }
+    }
+    return normalizeSearchResults(results, limit)
+  } finally {
+    graph.close()
+  }
+}
+
+function resolveGraphSession(
+  sessionNode: GraphNode,
+  rowsBySession: Map<string, SessionSearchRow>,
+  rowsBySessionId: Map<string, SessionSearchRow[]>,
+): SearchResult | null {
+  const client = typeof sessionNode.properties.client === 'string' ? sessionNode.properties.client : ''
+  const project = typeof sessionNode.properties.project === 'string' ? sessionNode.properties.project : ''
+  const sessionId = typeof sessionNode.properties.session_id === 'string' ? sessionNode.properties.session_id : ''
+
+  if (client && project && sessionId) {
+    const exact = rowsBySession.get(sessionKey({ client, project, session_id: sessionId }))
+    if (exact) return toSearchResult(exact)
+  }
+
+  if (sessionId) {
+    const candidates = rowsBySessionId.get(sessionId)
+    if (candidates && candidates.length > 0) return toSearchResult(candidates[0]!)
+  }
+
+  return null
 }

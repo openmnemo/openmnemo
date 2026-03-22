@@ -6,7 +6,7 @@
 import { resolve } from 'node:path'
 
 import { defaultGlobalTranscriptRoot, searchRecall } from '@openmnemo/core'
-import type { SearchResult } from '@openmnemo/core'
+import type { SearchRecallResult } from '@openmnemo/core'
 
 export interface SearchOptions {
   query: string
@@ -24,12 +24,9 @@ export async function cmdSearch(options: SearchOptions): Promise<number> {
 
   const globalRoot = options.globalRoot ? resolve(options.globalRoot) : defaultGlobalTranscriptRoot()
 
-  let layer: 1 | 2 | 3
-  let results: SearchResult[]
+  let result: SearchRecallResult
   try {
-    const result = searchRecall(globalRoot, query, options.limit)
-    layer = result.layer
-    results = result.results
+    result = searchRecall(globalRoot, query, options.limit)
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     process.stderr.write(`search error: ${msg}\n`)
@@ -37,15 +34,21 @@ export async function cmdSearch(options: SearchOptions): Promise<number> {
   }
 
   if (options.format === 'json') {
-    process.stdout.write(JSON.stringify({ query, layer, results, count: results.length }) + '\n')
+    process.stdout.write(JSON.stringify({ query, ...result, count: result.results.length }) + '\n')
   } else {
-    process.stdout.write(formatSearchText(query, layer, results) + '\n')
+    process.stdout.write(formatSearchText(query, result) + '\n')
   }
   return 0
 }
 
-function formatSearchText(query: string, layer: number, results: SearchResult[]): string {
-  const lines: string[] = [`query: ${query}`, `layer: ${layer}`, `count: ${results.length}`]
+function formatSearchText(query: string, result: SearchRecallResult): string {
+  const { mode, source_counts: sourceCounts, results } = result
+  const lines: string[] = [
+    `query: ${query}`,
+    `mode: ${mode}`,
+    `source_counts: fts=${sourceCounts.fts} vector=${sourceCounts.vector} graph=${sourceCounts.graph}`,
+    `count: ${results.length}`,
+  ]
   if (results.length > 0) {
     lines.push('results:')
     for (const r of results) {

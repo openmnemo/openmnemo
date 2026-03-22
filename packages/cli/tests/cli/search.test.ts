@@ -21,6 +21,16 @@ const MOCK_RESULTS = [
   },
 ]
 
+const MOCK_SEARCH_RESULT = {
+  mode: 'mixed' as const,
+  source_counts: {
+    fts: 1,
+    vector: 1,
+    graph: 0,
+  },
+  results: MOCK_RESULTS,
+}
+
 describe('cmdSearch', () => {
   let tmpDir: string
 
@@ -51,7 +61,7 @@ describe('cmdSearch', () => {
       const original = await importOriginal<typeof import('@openmnemo/core')>()
       return {
         ...original,
-        searchRecall: () => ({ layer: 2, results: MOCK_RESULTS }),
+        searchRecall: () => MOCK_SEARCH_RESULT,
       }
     })
 
@@ -67,7 +77,8 @@ describe('cmdSearch', () => {
       expect(code).toBe(0)
       const out = cap.out()
       expect(out).toContain('query: authentication')
-      expect(out).toContain('layer: 2')
+      expect(out).toContain('mode: mixed')
+      expect(out).toContain('source_counts: fts=1 vector=1 graph=0')
       expect(out).toContain('count: 1')
       expect(out).toContain('[claude] myproject/sess-001')
       expect(out).toContain('title: Authentication bug')
@@ -82,7 +93,7 @@ describe('cmdSearch', () => {
       const original = await importOriginal<typeof import('@openmnemo/core')>()
       return {
         ...original,
-        searchRecall: () => ({ layer: 2, results: MOCK_RESULTS }),
+        searchRecall: () => MOCK_SEARCH_RESULT,
       }
     })
 
@@ -98,7 +109,8 @@ describe('cmdSearch', () => {
       expect(code).toBe(0)
       const parsed = JSON.parse(cap.out())
       expect(parsed.query).toBe('auth')
-      expect(parsed.layer).toBe(2)
+      expect(parsed.mode).toBe('mixed')
+      expect(parsed.source_counts).toEqual({ fts: 1, vector: 1, graph: 0 })
       expect(parsed.count).toBe(1)
       expect(parsed.results[0].session_id).toBe('sess-001')
     } finally {
@@ -111,7 +123,11 @@ describe('cmdSearch', () => {
       const original = await importOriginal<typeof import('@openmnemo/core')>()
       return {
         ...original,
-        searchRecall: () => ({ layer: 3, results: [] }),
+        searchRecall: () => ({
+          mode: 'mixed' as const,
+          source_counts: { fts: 0, vector: 0, graph: 0 },
+          results: [],
+        }),
       }
     })
 
