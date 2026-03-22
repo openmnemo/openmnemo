@@ -51,3 +51,35 @@ export interface ManifestEntry {
   content?: string        // full clean markdown text (populated at import time)
   commit_layer?: string   // git commit message + changed files (task 1.2)
 }
+
+export type {
+  MemoryUnitType,
+  MemoryUnitStatus,
+  SourceAssetKind,
+  ArchiveAnchorScope,
+  RetrievalRefKind,
+  RetrievalSource,
+  DataLayerSearchTarget,
+} from './memory.js'
+
+export type {
+  SourceAnchor,
+  MemoryUnit,
+  SourceAsset,
+  ArchiveAnchor,
+  RetrievalScope,
+  RetrievalQuery,
+  RetrievalReference,
+  SessionRecord,
+  SessionDetail,
+  DataLayerSearchQuery,
+  DataLayerSearchHit,
+  DataLayerSearchResponse,
+  DataLayerListSessionsFilter,
+  DataLayerListSessionsPage,
+  EntityGraphNodeView,
+  EntityGraphEdgeView,
+  EntityGraphView,
+  CommitContext,
+  RetrievalTools,
+} from './memory.js'
