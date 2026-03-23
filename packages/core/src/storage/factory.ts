@@ -11,6 +11,7 @@ import type { GraphAdapter } from './graph/graph-adapter.js'
 export interface StorageConfig {
   indexDir: string
   vector_backend?: 'sqlite-vec' | 'qdrant'
+  vector_namespace?: string
   graph_backend?: 'sqlite' | 'neo4j'
   embedding_model?: string
   embedding_dims?: number
@@ -38,6 +39,7 @@ export function createVectorAdapter(cfg: StorageConfig): VectorAdapter {
   }
   return new SqliteVecAdapter(sqliteDbPath(cfg), {
     embeddingDimensions: cfg.embedding_dims ?? 1536,
+    ...(cfg.vector_namespace ? { namespace: cfg.vector_namespace } : {}),
   })
 }
 

@@ -47,4 +47,19 @@ export {
   TRANSCRIPT_MEMORY_EXTRACTOR,
   buildTranscriptSourceAsset,
   buildTranscriptExtractionBundle,
+  syncExtractionBundleGraph,
 } from './extraction.js'
+export {
+  listMemoryExtractionPaths,
+  listMemoryExtractionBundles,
+  getMemoryUnit,
+  getSourceAsset,
+  getArchiveAnchor,
+} from './catalog.js'
+export {
+  MEMORY_UNIT_VECTOR_NAMESPACE,
+  TRANSCRIPT_MEMORY_VECTORIZER,
+  MEMORY_UNIT_VECTOR_DIMS,
+  syncMemoryUnitVectors,
+  searchMemoryUnitVectors,
+} from './vector.js'

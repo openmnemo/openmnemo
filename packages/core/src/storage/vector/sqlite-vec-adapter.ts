@@ -2,17 +2,19 @@ import Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { load as loadSqliteVec } from 'sqlite-vec'
-import type { VectorAdapter, VectorMetadata, VectorResult } from './vector-adapter.js'
+import type {
+  VectorAdapter,
+  VectorMetadata,
+  VectorMetadataFilter,
+  VectorResult,
+} from './vector-adapter.js'
 
-const VECTOR_TABLE = 'vec_sessions'
-const META_TABLE = 'vec_session_meta'
+const DEFAULT_VECTOR_NAMESPACE = 'sessions'
 
-const CREATE_META_TABLE_SQL = `
-  CREATE TABLE IF NOT EXISTS vec_session_meta (
-    id TEXT NOT NULL UNIQUE,
-    metadata TEXT NOT NULL DEFAULT '{}'
-  )
-`
+interface VectorTableNames {
+  vectorTable: string
+  metaTable: string
+}
 
 function openDb(dbPath: string): InstanceType<typeof Database> {
   mkdirSync(dirname(dbPath), { recursive: true })
@@ -20,6 +22,43 @@ function openDb(dbPath: string): InstanceType<typeof Database> {
   db.pragma('journal_mode = WAL')
   db.pragma('busy_timeout = 5000')
   return db
+}
+
+function normalizeNamespace(namespace?: string): string {
+  const normalized = (namespace ?? DEFAULT_VECTOR_NAMESPACE)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  if (!normalized) {
+    throw new Error('SqliteVecAdapter namespace must not be empty')
+  }
+
+  return normalized
+}
+
+function tableNamesForNamespace(namespace: string): VectorTableNames {
+  if (namespace === DEFAULT_VECTOR_NAMESPACE) {
+    return {
+      vectorTable: 'vec_sessions',
+      metaTable: 'vec_session_meta',
+    }
+  }
+
+  return {
+    vectorTable: `vec_${namespace}`,
+    metaTable: `vec_${namespace}_meta`,
+  }
+}
+
+function createMetaTableSql(metaTable: string): string {
+  return `
+    CREATE TABLE IF NOT EXISTS ${metaTable} (
+      id TEXT NOT NULL UNIQUE,
+      metadata TEXT NOT NULL DEFAULT '{}'
+    )
+  `
 }
 
 function parseMetadata(raw: string): VectorMetadata {
@@ -31,9 +70,12 @@ function parseMetadata(raw: string): VectorMetadata {
   }
 }
 
-function createVectorTableSql(embeddingDimensions: number): string {
+function createVectorTableSql(
+  tableNames: VectorTableNames,
+  embeddingDimensions: number,
+): string {
   return `
-    CREATE VIRTUAL TABLE IF NOT EXISTS ${VECTOR_TABLE}
+    CREATE VIRTUAL TABLE IF NOT EXISTS ${tableNames.vectorTable}
     USING vec0(embedding float[${embeddingDimensions}])
   `
 }
@@ -46,12 +88,15 @@ function scoreFromDistance(distance: number): number {
   return 1 / (1 + distance)
 }
 
-function vectorTableSql(db: InstanceType<typeof Database>): string | null {
+function vectorTableSql(
+  db: InstanceType<typeof Database>,
+  vectorTable: string,
+): string | null {
   const row = db.prepare(`
     SELECT sql
     FROM sqlite_master
     WHERE name = ?
-  `).get(VECTOR_TABLE) as { sql: string | null } | undefined
+  `).get(vectorTable) as { sql: string | null } | undefined
   return row?.sql ?? null
 }
 
@@ -90,11 +135,12 @@ function parseLegacyEmbedding(raw: string, embeddingDimensions: number, id: stri
 
 function migrateLegacyTable(
   db: InstanceType<typeof Database>,
+  tableNames: VectorTableNames,
   embeddingDimensions: number,
 ): void {
   const legacyRows = db.prepare(`
     SELECT id, embedding, metadata
-    FROM ${VECTOR_TABLE}
+    FROM ${tableNames.vectorTable}
   `).all() as Array<{ id: string, embedding: string, metadata: string }>
   const parsedRows = legacyRows.map((row) => ({
     id: row.id,
@@ -103,17 +149,17 @@ function migrateLegacyTable(
   }))
 
   db.transaction(() => {
-    db.exec(`ALTER TABLE ${VECTOR_TABLE} RENAME TO ${VECTOR_TABLE}_legacy`)
-    db.exec(`DROP TABLE IF EXISTS ${META_TABLE}`)
-    db.exec(CREATE_META_TABLE_SQL)
-    db.exec(createVectorTableSql(embeddingDimensions))
+    db.exec(`ALTER TABLE ${tableNames.vectorTable} RENAME TO ${tableNames.vectorTable}_legacy`)
+    db.exec(`DROP TABLE IF EXISTS ${tableNames.metaTable}`)
+    db.exec(createMetaTableSql(tableNames.metaTable))
+    db.exec(createVectorTableSql(tableNames, embeddingDimensions))
 
     const insertMeta = db.prepare(`
-      INSERT INTO ${META_TABLE} (id, metadata)
+      INSERT INTO ${tableNames.metaTable} (id, metadata)
       VALUES (?, ?)
     `)
     const insertVec = db.prepare(`
-      INSERT INTO ${VECTOR_TABLE} (rowid, embedding)
+      INSERT INTO ${tableNames.vectorTable} (rowid, embedding)
       VALUES (CAST(? AS INTEGER), ?)
     `)
 
@@ -123,49 +169,85 @@ function migrateLegacyTable(
       insertVec.run(rowid, bufferFromEmbedding(row.embedding))
     }
 
-    db.exec(`DROP TABLE ${VECTOR_TABLE}_legacy`)
+    db.exec(`DROP TABLE ${tableNames.vectorTable}_legacy`)
   })()
 }
 
 function ensureSchema(
   db: InstanceType<typeof Database>,
+  tableNames: VectorTableNames,
   embeddingDimensions: number,
 ): void {
   loadSqliteVec(db)
 
-  const currentSql = vectorTableSql(db)
+  const currentSql = vectorTableSql(db, tableNames.vectorTable)
   if (currentSql !== null && !isVecVirtualTable(currentSql)) {
-    migrateLegacyTable(db, embeddingDimensions)
+    migrateLegacyTable(db, tableNames, embeddingDimensions)
     return
   }
 
   const currentDimensions = vectorTableDimensions(currentSql)
   if (currentSql !== null && currentDimensions !== embeddingDimensions) {
     throw new Error(
-      `SqliteVecAdapter existing vec_sessions uses dimension ${currentDimensions}, requested ${embeddingDimensions}; refusing to auto-drop vector data`,
+      `SqliteVecAdapter existing ${tableNames.vectorTable} uses dimension ${currentDimensions}, requested ${embeddingDimensions}; refusing to auto-drop vector data`,
     )
   }
 
-  db.exec(CREATE_META_TABLE_SQL)
-  db.exec(createVectorTableSql(embeddingDimensions))
+  db.exec(createMetaTableSql(tableNames.metaTable))
+  db.exec(createVectorTableSql(tableNames, embeddingDimensions))
+}
+
+function sqlPlaceholders(count: number): string {
+  return Array.from({ length: count }, () => '?').join(', ')
+}
+
+function jsonPathForMetadataKey(key: string): string {
+  return `$."${key.replace(/"/g, '""')}"`
+}
+
+function normalizeMetadataFilterValue(value: string | number | boolean): string | number {
+  if (typeof value === 'boolean') return value ? 1 : 0
+  return value
+}
+
+function buildMetadataFilter(
+  filter: VectorMetadataFilter,
+): { whereClause: string, values: Array<string | number> } {
+  const entries = Object.entries(filter)
+  if (entries.length === 0) {
+    return { whereClause: '1 = 0', values: [] }
+  }
+
+  return {
+    whereClause: entries
+      .map(([key]) => `json_extract(metadata, ?) = ?`)
+      .join(' AND '),
+    values: entries.flatMap(([key, value]) => [
+      jsonPathForMetadataKey(key),
+      normalizeMetadataFilterValue(value),
+    ]),
+  }
 }
 
 export interface SqliteVecAdapterOptions {
   embeddingDimensions?: number
+  namespace?: string
 }
 
 export class SqliteVecAdapter implements VectorAdapter {
   private readonly db: InstanceType<typeof Database>
   private readonly embeddingDimensions: number
+  private readonly tableNames: VectorTableNames
 
   constructor(
     dbPath: string,
     options: SqliteVecAdapterOptions = {},
   ) {
     this.embeddingDimensions = options.embeddingDimensions ?? 1536
+    this.tableNames = tableNamesForNamespace(normalizeNamespace(options.namespace))
     const db = openDb(dbPath)
     try {
-      ensureSchema(db, this.embeddingDimensions)
+      ensureSchema(db, this.tableNames, this.embeddingDimensions)
       this.db = db
     } catch (error) {
       db.close()
@@ -189,7 +271,7 @@ export class SqliteVecAdapter implements VectorAdapter {
     this.db.transaction(() => {
       const existing = this.db.prepare(`
         SELECT rowid
-        FROM ${META_TABLE}
+        FROM ${this.tableNames.metaTable}
         WHERE id = ?
       `).get(id) as { rowid: number } | undefined
 
@@ -197,21 +279,21 @@ export class SqliteVecAdapter implements VectorAdapter {
       if (existing) {
         rowid = Number(existing.rowid)
         this.db.prepare(`
-          UPDATE ${META_TABLE}
+          UPDATE ${this.tableNames.metaTable}
           SET metadata = ?
           WHERE rowid = ?
         `).run(metadataJson, rowid)
-        this.db.prepare(`DELETE FROM ${VECTOR_TABLE} WHERE rowid = ?`).run(rowid)
+        this.db.prepare(`DELETE FROM ${this.tableNames.vectorTable} WHERE rowid = ?`).run(rowid)
       } else {
         const result = this.db.prepare(`
-          INSERT INTO ${META_TABLE} (id, metadata)
+          INSERT INTO ${this.tableNames.metaTable} (id, metadata)
           VALUES (?, ?)
         `).run(id, metadataJson)
         rowid = Number(result.lastInsertRowid)
       }
 
       this.db.prepare(`
-        INSERT INTO ${VECTOR_TABLE} (rowid, embedding)
+        INSERT INTO ${this.tableNames.vectorTable} (rowid, embedding)
         VALUES (CAST(? AS INTEGER), ?)
       `).run(rowid, embeddingBuffer)
     })()
@@ -226,8 +308,8 @@ export class SqliteVecAdapter implements VectorAdapter {
         m.id AS id,
         m.metadata AS metadata,
         v.distance AS distance
-      FROM ${VECTOR_TABLE} AS v
-      JOIN ${META_TABLE} AS m ON m.rowid = v.rowid
+      FROM ${this.tableNames.vectorTable} AS v
+      JOIN ${this.tableNames.metaTable} AS m ON m.rowid = v.rowid
       WHERE v.embedding MATCH ?
         AND k = ?
       ORDER BY v.distance ASC
@@ -248,15 +330,41 @@ export class SqliteVecAdapter implements VectorAdapter {
     this.db.transaction(() => {
       const existing = this.db.prepare(`
         SELECT rowid
-        FROM ${META_TABLE}
+        FROM ${this.tableNames.metaTable}
         WHERE id = ?
       `).get(id) as { rowid: number } | undefined
 
       if (!existing) return
       const rowid = Number(existing.rowid)
-      this.db.prepare(`DELETE FROM ${VECTOR_TABLE} WHERE rowid = ?`).run(rowid)
-      this.db.prepare(`DELETE FROM ${META_TABLE} WHERE rowid = ?`).run(rowid)
+      this.db.prepare(`DELETE FROM ${this.tableNames.vectorTable} WHERE rowid = ?`).run(rowid)
+      this.db.prepare(`DELETE FROM ${this.tableNames.metaTable} WHERE rowid = ?`).run(rowid)
     })()
+  }
+
+  deleteByMetadata(filter: VectorMetadataFilter): number {
+    const metadataFilter = buildMetadataFilter(filter)
+    const rows = this.db.prepare(`
+      SELECT rowid
+      FROM ${this.tableNames.metaTable}
+      WHERE ${metadataFilter.whereClause}
+    `).all(...metadataFilter.values) as Array<{ rowid: number }>
+
+    if (rows.length === 0) return 0
+
+    const rowids = rows.map((row) => Number(row.rowid))
+    const placeholders = sqlPlaceholders(rowids.length)
+    this.db.transaction(() => {
+      this.db.prepare(`
+        DELETE FROM ${this.tableNames.vectorTable}
+        WHERE rowid IN (${placeholders})
+      `).run(...rowids)
+      this.db.prepare(`
+        DELETE FROM ${this.tableNames.metaTable}
+        WHERE rowid IN (${placeholders})
+      `).run(...rowids)
+    })()
+
+    return rowids.length
   }
 
   close(): void {

@@ -238,6 +238,45 @@ describe('createVectorAdapter', () => {
     }
   })
 
+  it('separates vector namespaces and deletes rows by metadata inside the selected namespace', () => {
+    const dbPath = join(tmpDir, 'search.sqlite')
+    const sessions = new SqliteVecAdapter(dbPath, { embeddingDimensions: 2 })
+    const units = new SqliteVecAdapter(dbPath, {
+      embeddingDimensions: 2,
+      namespace: 'memory_units',
+    })
+
+    try {
+      sessions.upsert('session-auth', [1, 0], { lane: 'session' })
+      units.upsert('unit-alpha', [1, 0], {
+        lane: 'unit',
+        managed_by: 'test-vectorizer',
+        managed_root_id: 'session:alpha',
+      })
+      units.upsert('unit-beta', [0, 1], {
+        lane: 'unit',
+        managed_by: 'test-vectorizer',
+        managed_root_id: 'session:beta',
+      })
+
+      expect(sessions.search([1, 0], 10).map((row) => row.id)).toEqual(['session-auth'])
+      expect(units.search([1, 0], 10).map((row) => row.id)).toContain('unit-alpha')
+
+      const deleted = units.deleteByMetadata({
+        managed_by: 'test-vectorizer',
+        managed_root_id: 'session:alpha',
+      })
+
+      expect(deleted).toBe(1)
+      expect(units.search([1, 0], 10).map((row) => row.id)).not.toContain('unit-alpha')
+      expect(units.search([0, 1], 10).map((row) => row.id)).toContain('unit-beta')
+      expect(sessions.search([1, 0], 10).map((row) => row.id)).toEqual(['session-auth'])
+    } finally {
+      units.close()
+      sessions.close()
+    }
+  })
+
   it('throws for qdrant (constructor throws Phase 1)', () => {
     expect(() => createVectorAdapter({ indexDir: '/tmp', vector_backend: 'qdrant' }))
       .toThrow('not implemented in Phase 1')

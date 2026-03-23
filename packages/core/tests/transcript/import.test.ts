@@ -16,6 +16,7 @@ import {
   copyFile,
 } from '../../src/transcript/import.js'
 import { createGraphAdapter } from '../../src/storage/factory.js'
+import { searchMemoryUnitVectors } from '../../src/memory/vector.js'
 
 function makeParsed(overrides: Partial<ParsedTranscript> = {}): ParsedTranscript {
   return {
@@ -314,6 +315,18 @@ describe('importTranscript', () => {
     } finally {
       graph.close()
     }
+
+    const vectorHits = searchMemoryUnitVectors(globalRoot, {
+      text: 'hello hi there',
+      limit: 10,
+      scope: {
+        project: 'my-project',
+        session_id: 'test-session',
+        unit_types: ['document_chunk'],
+      },
+    })
+    expect(vectorHits.length).toBeGreaterThan(0)
+    expect(vectorHits.every((hit) => hit.kind === 'memory_unit')).toBe(true)
   })
 
   it('replaces stale graph-derived runtime nodes on re-import of the same session', async () => {
@@ -336,9 +349,12 @@ describe('importTranscript', () => {
       true,
     )
     const firstExtractionPath = first.global_extraction_path!
+    const firstExtraction = JSON.parse(readFileSync(firstExtractionPath, 'utf-8')) as {
+      memory_units: Array<{ id: string }>
+    }
 
     writeFileSync(sourceFile, '{"type":"test-updated"}\n')
-    await importTranscript(
+    const second = await importTranscript(
       makeParsed({
         source_path: sourceFile,
         messages: [
@@ -353,6 +369,9 @@ describe('importTranscript', () => {
       'none',
       true,
     )
+    const secondExtraction = JSON.parse(readFileSync(second.global_extraction_path!, 'utf-8')) as {
+      memory_units: Array<{ id: string }>
+    }
 
     expect(existsSync(firstExtractionPath)).toBe(true)
 
@@ -377,6 +396,29 @@ describe('importTranscript', () => {
     } finally {
       graph.close()
     }
+
+    const staleVectors = searchMemoryUnitVectors(globalRoot, {
+      text: 'alpha reimport phrase',
+      limit: 10,
+      scope: {
+        project: 'my-project',
+        session_id: 'test-session',
+      },
+    })
+    const freshVectors = searchMemoryUnitVectors(globalRoot, {
+      text: 'beta reimport phrase',
+      limit: 10,
+      scope: {
+        project: 'my-project',
+        session_id: 'test-session',
+      },
+    })
+
+    const firstIds = new Set(firstExtraction.memory_units.map((unit) => unit.id))
+    const secondIds = new Set(secondExtraction.memory_units.map((unit) => unit.id))
+
+    expect(staleVectors.every((hit) => !firstIds.has(hit.id))).toBe(true)
+    expect(freshVectors.some((hit) => secondIds.has(hit.id))).toBe(true)
   })
 
   it('imports without repo mirror', async () => {

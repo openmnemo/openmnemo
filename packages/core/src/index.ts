@@ -164,6 +164,17 @@ export {
   TRANSCRIPT_MEMORY_EXTRACTOR,
   buildTranscriptSourceAsset,
   buildTranscriptExtractionBundle,
+  syncExtractionBundleGraph,
+  listMemoryExtractionPaths,
+  listMemoryExtractionBundles,
+  getMemoryUnit,
+  getSourceAsset,
+  getArchiveAnchor,
+  MEMORY_UNIT_VECTOR_NAMESPACE,
+  TRANSCRIPT_MEMORY_VECTORIZER,
+  MEMORY_UNIT_VECTOR_DIMS,
+  syncMemoryUnitVectors,
+  searchMemoryUnitVectors,
 } from './memory/index.js'
 export type {
   DataLayerAPI,
@@ -188,8 +199,14 @@ export type { SearchAdapter, SearchOptions } from './storage/search/search-adapt
 export { SqliteFtsAdapter } from './storage/search/sqlite-fts-adapter.js'
 
 // Vector adapter
-export type { VectorAdapter, VectorMetadata, VectorResult } from './storage/vector/vector-adapter.js'
+export type {
+  VectorAdapter,
+  VectorMetadata,
+  VectorMetadataFilter,
+  VectorResult,
+} from './storage/vector/vector-adapter.js'
 export { SqliteVecAdapter } from './storage/vector/sqlite-vec-adapter.js'
+export { DEFAULT_VECTOR_DIMS, deterministicTextEmbedding, isZeroVector } from './storage/vector/deterministic.js'
 
 // Graph adapter
 export type {

@@ -8,9 +8,11 @@ import { dirname, extname, join, relative } from 'node:path'
 
 import type { ManifestEntry, ParsedTranscript } from '@openmnemo/types'
 import { createGraphAdapter } from '../storage/factory.js'
+import { createVectorAdapter } from '../storage/factory.js'
 import { toPosixPath } from '../utils/path.js'
 import { buildCommitLayer } from '../utils/exec.js'
 import { buildTranscriptExtractionBundle, syncExtractionBundleGraph } from '../memory/extraction.js'
+import { MEMORY_UNIT_VECTOR_DIMS, MEMORY_UNIT_VECTOR_NAMESPACE, syncMemoryUnitVectors } from '../memory/vector.js'
 import {
   loadJson,
   normalizeTimestamp,
@@ -137,6 +139,21 @@ export async function importTranscript(
     }
   } catch {
     // Non-fatal: graph index failure should not abort the import
+  }
+
+  try {
+    const vector = createVectorAdapter({
+      indexDir: join(globalRoot, 'index'),
+      embedding_dims: MEMORY_UNIT_VECTOR_DIMS,
+      vector_namespace: MEMORY_UNIT_VECTOR_NAMESPACE,
+    })
+    try {
+      syncMemoryUnitVectors(vector, extractionBundle)
+    } finally {
+      vector.close()
+    }
+  } catch {
+    // Non-fatal: vector index failure should not abort the import
   }
 
   try {

@@ -15,6 +15,11 @@ import { parseTranscript } from '../transcript/parse.js'
 import { searchTranscriptsByColumns, sanitizeFtsQuery } from '../transcript/db.js'
 import type { SearchResult } from '../transcript/db.js'
 import { createGraphAdapter } from '../storage/factory.js'
+import {
+  DEFAULT_VECTOR_DIMS,
+  deterministicTextEmbedding,
+  isZeroVector,
+} from '../storage/vector/deterministic.js'
 import type { GraphNode } from '../storage/graph/graph-adapter.js'
 import { toPosixPath } from '../utils/path.js'
 
@@ -329,7 +334,6 @@ export function searchRecall(
 // ---------------------------------------------------------------------------
 
 const RRF_K = 60
-const DEFAULT_VECTOR_DIMS = 1536
 const GRAPH_LABELS = [
   'Project',
   'Technology',
@@ -447,33 +451,6 @@ function loadSessionRows(dbPath: string): SessionSearchRow[] {
   }
 }
 
-function hashToken(token: string): number {
-  let hash = 2166136261
-  for (let i = 0; i < token.length; i++) {
-    hash ^= token.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  return hash >>> 0
-}
-
-function deterministicTextEmbedding(text: string, dimensions = DEFAULT_VECTOR_DIMS): number[] {
-  const sanitized = sanitizeFtsQuery(text).toLowerCase()
-  const tokens = sanitized ? sanitized.split(/\s+/).filter(Boolean) : []
-  if (tokens.length === 0) return Array(dimensions).fill(0)
-
-  const vector = Array(dimensions).fill(0)
-  for (const token of tokens) {
-    const hash = hashToken(token)
-    const index = hash % dimensions
-    const sign = (hash & 1) === 0 ? 1 : -1
-    vector[index] += sign
-  }
-
-  const norm = Math.sqrt(vector.reduce((sum, value) => sum + value * value, 0))
-  if (norm === 0) return vector
-  return vector.map((value) => value / norm)
-}
-
 function cosineSimilarity(left: number[], right: number[]): number {
   let score = 0
   for (let index = 0; index < left.length; index++) {
@@ -482,14 +459,10 @@ function cosineSimilarity(left: number[], right: number[]): number {
   return score
 }
 
-function isZeroVector(vector: number[]): boolean {
-  return vector.every((value) => value === 0)
-}
-
 function searchVectorRecall(rows: SessionSearchRow[], query: string, limit: number): SearchResult[] {
   if (limit <= 0 || rows.length === 0) return []
 
-  const queryEmbedding = deterministicTextEmbedding(query)
+  const queryEmbedding = deterministicTextEmbedding(sanitizeFtsQuery(query), DEFAULT_VECTOR_DIMS)
   if (isZeroVector(queryEmbedding)) return []
 
   return rows
@@ -499,7 +472,7 @@ function searchVectorRecall(rows: SessionSearchRow[], query: string, limit: numb
         .join('\n')
       return {
         result: toSearchResult(row),
-        score: cosineSimilarity(queryEmbedding, deterministicTextEmbedding(body)),
+        score: cosineSimilarity(queryEmbedding, deterministicTextEmbedding(sanitizeFtsQuery(body), DEFAULT_VECTOR_DIMS)),
       }
     })
     .filter((entry) => entry.score > 0)
