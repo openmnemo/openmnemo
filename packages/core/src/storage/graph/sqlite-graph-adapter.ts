@@ -5,6 +5,7 @@ import type {
   GraphAdapter,
   GraphNode,
   GraphEdge,
+  FindNodesByEntityOptions,
   FindSessionsByEntityOptions,
   ManagedSubgraphSelector,
 } from './graph-adapter.js'
@@ -38,6 +39,15 @@ const NON_SEARCHABLE_PROPERTY_KEYS = new Set([
   'unit_type',
   'unit_type_display',
   'scope',
+  'project',
+  'client',
+  'session_id',
+  'started_at',
+  'cwd',
+  'branch',
+  'source_uri',
+  'import_ref',
+  'source_ref',
   'managed_by',
   'managed_root_id',
   'managed_scope',
@@ -102,13 +112,28 @@ function collectSearchableStrings(value: unknown, bucket: string[]): void {
   }
 }
 
-function matchesEntityName(node: GraphNode, entityName: string): boolean {
+function stringMatchRank(value: string, normalizedQuery: string): number | null {
+  const normalizedValue = value.trim().toLowerCase()
+  if (!normalizedValue) return null
+  if (normalizedValue === normalizedQuery) return 0
+  if (normalizedValue.startsWith(normalizedQuery)) return 1
+  return normalizedValue.includes(normalizedQuery) ? 2 : null
+}
+
+function entityNameMatchRank(node: GraphNode, entityName: string): number | null {
   const normalized = entityName.trim().toLowerCase()
-  if (!normalized) return true
+  if (!normalized) return 0
 
   const searchable: string[] = []
   collectSearchableStrings(node.properties, searchable)
-  return searchable.some((value) => value.toLowerCase().includes(normalized))
+  let bestRank: number | null = null
+  for (const value of searchable) {
+    const rank = stringMatchRank(value, normalized)
+    if (rank === null) continue
+    if (bestRank === null || rank < bestRank) bestRank = rank
+  }
+
+  return bestRank
 }
 
 function sqlPlaceholders(count: number): string {
@@ -250,6 +275,42 @@ export class SqliteGraphAdapter implements GraphAdapter {
     return this.findRelatedWithDepth(entityId, depth).map((match) => match.node)
   }
 
+  private findMatchingEntities(
+    entityName: string,
+    entityLabel: string,
+  ): GraphNodeWithDepth[] {
+    const nodes = this.db.prepare(`
+      SELECT id, labels, properties
+      FROM graph_nodes
+      ORDER BY id ASC
+    `).all() as Array<{ id: string, labels: string, properties: string }>
+
+    return nodes
+      .map(toGraphNode)
+      .flatMap((node) => {
+        if (entityLabel && !nodeHasLabel(node, entityLabel)) return []
+
+        const matchRank = entityNameMatchRank(node, entityName)
+        if (matchRank === null) return []
+
+        return [{ node, depth: matchRank }]
+      })
+      .sort((left, right) => left.depth - right.depth || left.node.id.localeCompare(right.node.id))
+  }
+
+  findNodesByEntity(options: FindNodesByEntityOptions = {}): GraphNode[] {
+    const entityName = options.entityName?.trim() ?? ''
+    const entityLabel = options.entityLabel?.trim() ?? ''
+    const limit = options.limit ?? 20
+
+    if (!entityName && !entityLabel) return []
+    if (limit <= 0) return []
+
+    return this.findMatchingEntities(entityName, entityLabel)
+      .slice(0, limit)
+      .map((match) => match.node)
+  }
+
   findSessionsByEntity(options: FindSessionsByEntityOptions = {}): GraphNode[] {
     const entityName = options.entityName?.trim() ?? ''
     const entityLabel = options.entityLabel?.trim() ?? ''
@@ -259,18 +320,8 @@ export class SqliteGraphAdapter implements GraphAdapter {
     if (!entityName && !entityLabel) return []
     if (limit <= 0) return []
 
-    const nodes = this.db.prepare(`
-      SELECT id, labels, properties
-      FROM graph_nodes
-      ORDER BY id ASC
-    `).all() as Array<{ id: string, labels: string, properties: string }>
-
-    const matchedEntities = nodes
-      .map(toGraphNode)
-      .filter((node) => {
-        if (entityLabel && !nodeHasLabel(node, entityLabel)) return false
-        return matchesEntityName(node, entityName)
-      })
+    const matchedEntities = this.findMatchingEntities(entityName, entityLabel)
+      .map((match) => match.node)
 
     const sessions = new Map<string, GraphNodeWithDepth>()
 

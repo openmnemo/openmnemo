@@ -11,11 +11,14 @@ export interface GraphEdge {
   properties?: Record<string, unknown>
 }
 
-export interface FindSessionsByEntityOptions {
+export interface FindNodesByEntityOptions {
   entityName?: string
   entityLabel?: string
-  depth?: number
   limit?: number
+}
+
+export interface FindSessionsByEntityOptions extends FindNodesByEntityOptions {
+  depth?: number
 }
 
 export interface ManagedSubgraphSelector {
@@ -28,6 +31,7 @@ export interface GraphAdapter {
   upsertEdge(edge: GraphEdge): void
   deleteManagedSubgraph(selector: ManagedSubgraphSelector): void
   findRelated(entityId: string, depth: number): GraphNode[]
+  findNodesByEntity(options?: FindNodesByEntityOptions): GraphNode[]
   findSessionsByEntity(options?: FindSessionsByEntityOptions): GraphNode[]
   query(cypher: string): unknown[]
   close(): void

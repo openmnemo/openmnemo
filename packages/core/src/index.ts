@@ -213,6 +213,7 @@ export type {
   GraphAdapter,
   GraphNode,
   GraphEdge,
+  FindNodesByEntityOptions,
   FindSessionsByEntityOptions,
   ManagedSubgraphSelector,
 } from './storage/graph/graph-adapter.js'

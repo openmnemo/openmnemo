@@ -22,7 +22,7 @@ import {
   deterministicTextEmbedding,
   isZeroVector,
 } from '../storage/vector/deterministic.js'
-import type { GraphNode } from '../storage/graph/graph-adapter.js'
+import type { GraphAdapter, GraphNode } from '../storage/graph/graph-adapter.js'
 import { toPosixPath } from '../utils/path.js'
 
 // ---------------------------------------------------------------------------
@@ -336,16 +336,19 @@ export function searchRecall(
 // ---------------------------------------------------------------------------
 
 const RRF_K = 60
-const GRAPH_LABELS = [
+const STRUCTURED_GRAPH_LABELS = [
+  'MemoryUnit',
+  'ArchiveAnchor',
+  'SourceAsset',
+] as const
+
+const FALLBACK_GRAPH_LABELS = [
   'Project',
   'Technology',
   'Concept',
   'Person',
   'Commit',
   'Session',
-  'SourceAsset',
-  'ArchiveAnchor',
-  'MemoryUnit',
 ] as const
 
 interface SessionSearchRow extends SearchResult {
@@ -374,15 +377,6 @@ function toSearchResult(row: SessionSearchRow): SearchResult {
     branch: row.branch,
     started_at: row.started_at,
   }
-}
-
-function normalizeSearchResults(results: SearchResult[], limit: number): SearchResult[] {
-  const deduped = new Map<string, SearchResult>()
-  for (const result of results) {
-    const key = sessionKey(result)
-    if (!deduped.has(key)) deduped.set(key, result)
-  }
-  return [...deduped.values()].slice(0, limit)
 }
 
 function fuseRankedResults(
@@ -467,6 +461,11 @@ function buildRowsByProjectSession(rows: SessionSearchRow[]): Map<string, Sessio
 }
 
 function unitAggregationCandidateLimit(limit: number): number {
+  if (limit === Number.MAX_SAFE_INTEGER) return 200
+  return Math.min(Math.max(limit * 8, 20), 200)
+}
+
+function graphAggregationCandidateLimit(limit: number): number {
   if (limit === Number.MAX_SAFE_INTEGER) return 200
   return Math.min(Math.max(limit * 8, 20), 200)
 }
@@ -607,25 +606,129 @@ function searchGraphRecall(
 
   const graph = createGraphAdapter({ indexDir })
   try {
-    const results: SearchResult[] = []
-    for (const graphQuery of extractGraphQueries(query)) {
-      for (const label of GRAPH_LABELS) {
-        const sessions = graph.findSessionsByEntity({
-          entityName: graphQuery,
-          entityLabel: label,
-          depth: 2,
-          limit,
-        })
-        for (const session of sessions) {
-          const resolved = resolveGraphSession(session, rowsBySession, rowsBySessionId)
-          if (resolved) results.push(resolved)
-        }
-      }
+    const structured = searchGraphEntitiesToSessions(
+      graph,
+      rowsBySession,
+      rowsBySessionId,
+      query,
+      STRUCTURED_GRAPH_LABELS,
+      limit,
+    )
+    if (structured.length > 0) {
+      return structured
     }
-    return normalizeSearchResults(results, limit)
+
+    return searchGraphEntitiesToSessions(
+      graph,
+      rowsBySession,
+      rowsBySessionId,
+      query,
+      FALLBACK_GRAPH_LABELS,
+      limit,
+    )
   } finally {
     graph.close()
   }
+}
+
+function graphNodeHasLabel(node: GraphNode, label: string): boolean {
+  const normalized = label.trim().toLowerCase()
+  return node.labels.some((value) => value.toLowerCase() === normalized)
+}
+
+function collectGraphEntityMatches(
+  graph: GraphAdapter,
+  query: string,
+  labels: readonly string[],
+  limit: number,
+): GraphNode[] {
+  const matches = new Map<string, GraphNode>()
+  for (const graphQuery of extractGraphQueries(query)) {
+    for (const label of labels) {
+      const nodes = graph.findNodesByEntity({
+        entityName: graphQuery,
+        entityLabel: label,
+        limit: graphAggregationCandidateLimit(limit),
+      })
+      for (const node of nodes) {
+        if (!matches.has(node.id)) matches.set(node.id, node)
+      }
+    }
+  }
+  return [...matches.values()]
+}
+
+function resolveGraphSessionsForNode(
+  graph: GraphAdapter,
+  node: GraphNode,
+): GraphNode[] {
+  if (graphNodeHasLabel(node, 'Session')) {
+    return [node]
+  }
+
+  const sessions = new Map<string, GraphNode>()
+  for (const related of graph.findRelated(node.id, 2)) {
+    if (!graphNodeHasLabel(related, 'Session')) continue
+    if (!sessions.has(related.id)) sessions.set(related.id, related)
+  }
+  return [...sessions.values()]
+}
+
+function aggregateGraphEntityMatchesToSessions(
+  graph: GraphAdapter,
+  matches: GraphNode[],
+  rowsBySession: Map<string, SessionSearchRow>,
+  rowsBySessionId: Map<string, SessionSearchRow[]>,
+  limit: number,
+): SearchResult[] {
+  const scores = new Map<string, { result: SearchResult, score: number }>()
+
+  matches.forEach((match, index) => {
+    const sessions = resolveGraphSessionsForNode(graph, match)
+    sessions.forEach((sessionNode, sessionIndex) => {
+      const resolved = resolveGraphSession(sessionNode, rowsBySession, rowsBySessionId)
+      if (!resolved) return
+
+      const key = sessionKey(resolved)
+      const rrf = 1 / (RRF_K + index + sessionIndex + 1)
+      const existing = scores.get(key)
+      if (existing) {
+        existing.score += rrf
+      } else {
+        scores.set(key, {
+          result: resolved,
+          score: rrf,
+        })
+      }
+    })
+  })
+
+  return [...scores.values()]
+    .sort((left, right) =>
+      right.score - left.score
+      || compareSearchResults(left.result, right.result))
+    .slice(0, limit)
+    .map((entry) => entry.result)
+}
+
+function searchGraphEntitiesToSessions(
+  graph: GraphAdapter,
+  rowsBySession: Map<string, SessionSearchRow>,
+  rowsBySessionId: Map<string, SessionSearchRow[]>,
+  query: string,
+  labels: readonly string[],
+  limit: number,
+): SearchResult[] {
+  const matches = collectGraphEntityMatches(graph, query, labels, limit)
+  if (matches.length === 0) return []
+
+  return aggregateGraphEntityMatchesToSessions(
+    graph,
+    matches,
+    rowsBySession,
+    rowsBySessionId,
+    limit,
+  )
 }
 
 function resolveGraphSession(

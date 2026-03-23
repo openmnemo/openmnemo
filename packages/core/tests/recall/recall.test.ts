@@ -421,6 +421,71 @@ describe('searchRecall', () => {
     expect(result.results[0]?.session_id).toBe('sess-unit-graph')
   })
 
+  it('prefers structured graph hits over plain session graph hits once graph recall is unit-first', () => {
+    insertTranscript(tmpDir, {
+      session_id: 'sess-structured-graph',
+      raw_sha256: 'sha-structured-graph',
+      title: 'Design review',
+      started_at: '2024-06-04T11:00:00Z',
+      content: 'Authentication follow-up without the target graph phrase.',
+      commit_layer: 'fix: login redirect edge case',
+    })
+    insertTranscript(tmpDir, {
+      session_id: 'sess-plain-session',
+      raw_sha256: 'sha-plain-session',
+      title: 'Fallback review',
+      started_at: '2024-06-04T10:00:00Z',
+      content: 'Another session without the target graph phrase.',
+      commit_layer: 'docs: unrelated notes',
+    })
+
+    const graph = createGraphAdapter({ indexDir: join(tmpDir, 'index') })
+    try {
+      graph.upsertNode({
+        id: 'session:claude:openmnemo:sess-structured-graph',
+        labels: ['Session'],
+        properties: {
+          client: 'claude',
+          project: 'openmnemo',
+          session_id: 'sess-structured-graph',
+          title: 'Design review',
+        },
+      })
+      graph.upsertNode({
+        id: 'session:claude:openmnemo:sess-plain-session',
+        labels: ['Session'],
+        properties: {
+          client: 'claude',
+          project: 'openmnemo',
+          session_id: 'sess-plain-session',
+          title: 'Retrieval seam follow-up',
+        },
+      })
+      graph.upsertNode({
+        id: 'memory_unit:claude:openmnemo:sess-structured-graph:001',
+        labels: ['MemoryUnit', 'DocumentChunk'],
+        properties: {
+          title: 'Primary retrieval chunk',
+          summary: 'Retrieval seam is anchored at the memory unit layer.',
+        },
+      })
+      graph.upsertEdge({
+        fromId: 'session:claude:openmnemo:sess-structured-graph',
+        toId: 'memory_unit:claude:openmnemo:sess-structured-graph:001',
+        type: 'CONTAINS_UNIT',
+      })
+    } finally {
+      graph.close()
+    }
+
+    const result = searchRecall(tmpDir, 'retrieval seam', 5)
+
+    expect(result.source_counts.fts).toBe(0)
+    expect(result.source_counts.vector).toBe(0)
+    expect(result.source_counts.graph).toBeGreaterThan(0)
+    expect(result.results.map((entry) => entry.session_id)).toEqual(['sess-structured-graph'])
+  })
+
   it('aggregates unit-level vector hits back to sessions before mixed fusion', () => {
     insertTranscript(tmpDir, {
       session_id: 'sess-unit-vector',

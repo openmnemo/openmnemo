@@ -354,6 +354,41 @@ describe('createGraphAdapter', () => {
     }
   })
 
+  it('finds matching entity nodes directly before session aggregation', () => {
+    const adapter = createGraphAdapter({ indexDir: tmpDir })
+    try {
+      adapter.upsertNode({
+        id: 'memory_unit:semantic:001',
+        labels: ['MemoryUnit', 'DocumentChunk'],
+        properties: {
+          project: 'openmnemo',
+          title: 'Authentication chunk',
+          summary: 'Cookie redirect handling',
+          source_ref: 'turn:1',
+        },
+      })
+
+      const semantic = adapter.findNodesByEntity({
+        entityName: 'cookie redirect',
+        entityLabel: 'MemoryUnit',
+      })
+      const projectMetadata = adapter.findNodesByEntity({
+        entityName: 'openmnemo',
+        entityLabel: 'MemoryUnit',
+      })
+      const sourceRefMetadata = adapter.findNodesByEntity({
+        entityName: 'turn:1',
+        entityLabel: 'MemoryUnit',
+      })
+
+      expect(semantic.map(node => node.id)).toEqual(['memory_unit:semantic:001'])
+      expect(projectMetadata).toEqual([])
+      expect(sourceRefMetadata).toEqual([])
+    } finally {
+      adapter.close()
+    }
+  })
+
   it('deduplicates and sorts sessions by shortest entity distance', () => {
     const adapter = createGraphAdapter({ indexDir: tmpDir })
     try {
