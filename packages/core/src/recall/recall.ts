@@ -14,6 +14,8 @@ import { importTranscript, transcriptHasContent } from '../transcript/import.js'
 import { parseTranscript } from '../transcript/parse.js'
 import { searchTranscriptsByColumns, sanitizeFtsQuery } from '../transcript/db.js'
 import type { SearchResult } from '../transcript/db.js'
+import { listMemoryExtractionBundles } from '../memory/catalog.js'
+import { searchMemoryUnitVectors } from '../memory/vector.js'
 import { createGraphAdapter } from '../storage/factory.js'
 import {
   DEFAULT_VECTOR_DIMS,
@@ -298,7 +300,7 @@ export interface SearchRecallResult {
  * Session-level mixed retrieval over the transcript index.
  * Phase 0 fuses:
  *   - FTS recall (commit/meta/content)
- *   - deterministic local vector recall over session text
+ *   - unit-first vector recall over memory units, with session-level fallback
  *   - graph recall from entity/session links when graph data exists
  *
  * Results are merged with Reciprocal Rank Fusion (RRF) and returned as
@@ -315,7 +317,7 @@ export function searchRecall(
   const effectiveLimit = limit > 0 ? limit : Number.MAX_SAFE_INTEGER
   const rows = loadSessionRows(dbPath)
   const fts = searchFtsRecall(dbPath, query, effectiveLimit)
-  const vector = searchVectorRecall(rows, query, effectiveLimit)
+  const vector = searchVectorRecall(globalRoot, rows, query, effectiveLimit)
   const graph = searchGraphRecall(dirname(dbPath), rows, query, effectiveLimit)
 
   return {
@@ -451,6 +453,77 @@ function loadSessionRows(dbPath: string): SessionSearchRow[] {
   }
 }
 
+function projectSessionKey(project: string, sessionId: string): string {
+  return `${project}\u0000${sessionId}`
+}
+
+function buildRowsByProjectSession(rows: SessionSearchRow[]): Map<string, SessionSearchRow> {
+  const map = new Map<string, SessionSearchRow>()
+  for (const row of rows) {
+    const key = projectSessionKey(row.project, row.session_id)
+    if (!map.has(key)) map.set(key, row)
+  }
+  return map
+}
+
+function unitAggregationCandidateLimit(limit: number): number {
+  if (limit === Number.MAX_SAFE_INTEGER) return 200
+  return Math.min(Math.max(limit * 8, 20), 200)
+}
+
+function searchUnitVectorRecall(
+  globalRoot: string,
+  rowsByProjectSession: Map<string, SessionSearchRow>,
+  query: string,
+  limit: number,
+): SearchResult[] {
+  if (limit <= 0) return []
+
+  const unitRefs = searchMemoryUnitVectors(globalRoot, {
+    text: query,
+    limit: unitAggregationCandidateLimit(limit),
+  })
+  if (unitRefs.length === 0) return []
+
+  const unitSessionIndex = new Map<string, { project: string, session_id: string }>()
+  for (const bundle of listMemoryExtractionBundles(globalRoot)) {
+    for (const unit of bundle.memory_units) {
+      unitSessionIndex.set(unit.id, {
+        project: bundle.project,
+        session_id: bundle.session_id,
+      })
+    }
+  }
+
+  const scores = new Map<string, { result: SearchResult, score: number }>()
+  unitRefs.forEach((ref, index) => {
+    const location = unitSessionIndex.get(ref.id)
+    if (!location) return
+
+    const row = rowsByProjectSession.get(projectSessionKey(location.project, location.session_id))
+    if (!row) return
+
+    const key = sessionKey(row)
+    const rrf = 1 / (RRF_K + index + 1)
+    const existing = scores.get(key)
+    if (existing) {
+      existing.score += rrf
+    } else {
+      scores.set(key, {
+        result: toSearchResult(row),
+        score: rrf,
+      })
+    }
+  })
+
+  return [...scores.values()]
+    .sort((left, right) =>
+      right.score - left.score
+      || compareSearchResults(left.result, right.result))
+    .slice(0, limit)
+    .map((entry) => entry.result)
+}
+
 function cosineSimilarity(left: number[], right: number[]): number {
   let score = 0
   for (let index = 0; index < left.length; index++) {
@@ -459,7 +532,7 @@ function cosineSimilarity(left: number[], right: number[]): number {
   return score
 }
 
-function searchVectorRecall(rows: SessionSearchRow[], query: string, limit: number): SearchResult[] {
+function searchSessionVectorRecall(rows: SessionSearchRow[], query: string, limit: number): SearchResult[] {
   if (limit <= 0 || rows.length === 0) return []
 
   const queryEmbedding = deterministicTextEmbedding(sanitizeFtsQuery(query), DEFAULT_VECTOR_DIMS)
@@ -479,6 +552,27 @@ function searchVectorRecall(rows: SessionSearchRow[], query: string, limit: numb
     .sort((left, right) => right.score - left.score || compareSearchResults(left.result, right.result))
     .slice(0, limit)
     .map((entry) => entry.result)
+}
+
+function searchVectorRecall(
+  globalRoot: string,
+  rows: SessionSearchRow[],
+  query: string,
+  limit: number,
+): SearchResult[] {
+  if (rows.length === 0) return []
+
+  const unitFirst = searchUnitVectorRecall(
+    globalRoot,
+    buildRowsByProjectSession(rows),
+    query,
+    limit,
+  )
+  if (unitFirst.length > 0) {
+    return unitFirst
+  }
+
+  return searchSessionVectorRecall(rows, query, limit)
 }
 
 function extractGraphQueries(query: string): string[] {

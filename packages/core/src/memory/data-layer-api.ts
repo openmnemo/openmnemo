@@ -35,9 +35,16 @@ export interface DataLayerDependencies {
   listSessions(filter?: DataLayerListSessionsFilter): Promise<DataLayerListSessionsPage>
   getCommitContext(sessionId: string): Promise<CommitContext | null>
   getEntityGraph(entityName: string): Promise<EntityGraphView>
+  getSessionForRef?(ref: RetrievalReference): Promise<SessionDetail | null>
   getMemoryUnit?(id: string): Promise<MemoryUnit | null>
   getSourceAsset?(id: string): Promise<SourceAsset | null>
   getArchiveAnchor?(id: string): Promise<ArchiveAnchor | null>
+}
+
+function mixedCandidateLimit(limit?: number): number {
+  const effectiveLimit = toEffectiveRetrievalLimit(limit)
+  if (effectiveLimit === Number.MAX_SAFE_INTEGER) return effectiveLimit
+  return Math.min(Math.max(effectiveLimit * 4, effectiveLimit), 200)
 }
 
 async function runSearch(
@@ -59,15 +66,19 @@ async function runSearch(
       return retrieval.searchArchiveAnchors ? retrieval.searchArchiveAnchors(executionQuery) : []
     case 'mixed': {
       const effectiveLimit = toEffectiveRetrievalLimit(query.limit)
+      const candidateQuery = {
+        ...executionQuery,
+        limit: mixedCandidateLimit(query.limit),
+      }
       const results = await Promise.all([
-        retrieval.searchSessions(executionQuery),
-        retrieval.searchMemoryUnits(executionQuery),
-        retrieval.searchSourceAssets ? retrieval.searchSourceAssets(executionQuery) : Promise.resolve([]),
-        retrieval.searchArchiveAnchors ? retrieval.searchArchiveAnchors(executionQuery) : Promise.resolve([]),
+        retrieval.searchSessions(candidateQuery),
+        retrieval.searchMemoryUnits(candidateQuery),
+        retrieval.searchSourceAssets ? retrieval.searchSourceAssets(candidateQuery) : Promise.resolve([]),
+        retrieval.searchArchiveAnchors ? retrieval.searchArchiveAnchors(candidateQuery) : Promise.resolve([]),
       ])
       return dedupeRetrievalReferences(results.flat())
         .sort(compareRetrievalReferences)
-        .slice(0, effectiveLimit)
+        .slice(0, mixedCandidateLimit(effectiveLimit))
     }
   }
 
@@ -85,23 +96,76 @@ async function hydrateSearchHit(
     }
     case 'memory_unit': {
       const memoryUnit = deps.getMemoryUnit ? await deps.getMemoryUnit(ref.id) : null
-      return memoryUnit ? { ref, memory_unit: memoryUnit } : { ref }
+      const session = deps.getSessionForRef ? await deps.getSessionForRef(ref) : null
+      return {
+        ref,
+        ...(memoryUnit ? { memory_unit: memoryUnit } : {}),
+        ...(session ? { session } : {}),
+      }
     }
     case 'source_asset': {
       const sourceAsset = deps.getSourceAsset
         ? await deps.getSourceAsset(ref.id)
         : await deps.retrieval.getSourceAsset(ref.id)
-      return sourceAsset ? { ref, source_asset: sourceAsset } : { ref }
+      const session = deps.getSessionForRef ? await deps.getSessionForRef(ref) : null
+      return {
+        ref,
+        ...(sourceAsset ? { source_asset: sourceAsset } : {}),
+        ...(session ? { session } : {}),
+      }
     }
     case 'archive_anchor': {
       const archiveAnchor = deps.getArchiveAnchor
         ? await deps.getArchiveAnchor(ref.id)
         : await deps.retrieval.getArchiveAnchor(ref.id)
-      return archiveAnchor ? { ref, archive_anchor: archiveAnchor } : { ref }
+      const session = deps.getSessionForRef ? await deps.getSessionForRef(ref) : null
+      return {
+        ref,
+        ...(archiveAnchor ? { archive_anchor: archiveAnchor } : {}),
+        ...(session ? { session } : {}),
+      }
     }
     case 'commit':
       return { ref }
   }
+}
+
+function mixedHitPriority(hit: DataLayerSearchHit): number {
+  switch (hit.ref.kind) {
+    case 'memory_unit':
+      return 0
+    case 'source_asset':
+      return 1
+    case 'archive_anchor':
+      return 2
+    case 'session':
+      return 3
+    case 'commit':
+      return 4
+  }
+}
+
+function compareMixedHits(left: DataLayerSearchHit, right: DataLayerSearchHit): number {
+  return mixedHitPriority(left) - mixedHitPriority(right)
+    || compareRetrievalReferences(left.ref, right.ref)
+}
+
+function normalizeMixedHits(
+  hits: DataLayerSearchHit[],
+  limit?: number,
+): DataLayerSearchHit[] {
+  const coveredSessions = new Set(
+    hits
+      .filter((hit) => hit.ref.kind !== 'session' && typeof hit.session?.session_id === 'string')
+      .map((hit) => hit.session!.session_id),
+  )
+
+  return hits
+    .filter((hit) => !(hit.ref.kind === 'session'
+      && typeof hit.session?.session_id === 'string'
+      && coveredSessions.has(hit.session.session_id)))
+    .sort(compareMixedHits)
+    .slice(0, toEffectiveRetrievalLimit(limit))
 }
 
 export function createDataLayerAPI(deps: DataLayerDependencies): DataLayerAPI {
@@ -110,7 +174,12 @@ export function createDataLayerAPI(deps: DataLayerDependencies): DataLayerAPI {
       const normalized = normalizeDataLayerSearchQuery(query)
       const refs = await runSearch(deps.retrieval, normalized)
       const hits = await Promise.all(refs.map((ref) => hydrateSearchHit(deps, ref)))
-      return { query: normalized, hits }
+      return {
+        query: normalized,
+        hits: normalized.target === 'mixed'
+          ? normalizeMixedHits(hits, normalized.limit)
+          : hits,
+      }
     },
 
     getSession(id: string): Promise<SessionDetail | null> {

@@ -178,6 +178,8 @@ describe('createDataLayerAPI', () => {
       listSessions: async () => listSessionsPage,
       getCommitContext: async (sessionId: string) => ({ session_id: sessionId, commit_refs: ['abc123'] }),
       getEntityGraph: async () => graphView,
+      getSessionForRef: async (ref: RetrievalReference) =>
+        ref.kind === 'session' ? buildSession(ref.id) : buildSession('sess-1'),
       getMemoryUnit: async (id: string) => buildMemoryUnit({ id }),
     }
   }
@@ -190,11 +192,13 @@ describe('createDataLayerAPI', () => {
 
     expect(isDataLayerSearchResponse(result)).toBe(true)
     expect(result.query).toEqual({ text: 'sqlite memory', target: 'mixed', limit: 10 })
-    expect(result.hits.map((hit) => hit.ref.id)).toEqual(['sess-1', 'unit-1', 'asset-1', 'anchor-1'])
+    expect(result.hits.map((hit) => hit.ref.id)).toEqual(['unit-1', 'asset-1', 'anchor-1'])
+    expect(result.hits[0]?.memory_unit?.id).toBe('unit-1')
     expect(result.hits[0]?.session?.session_id).toBe('sess-1')
-    expect(result.hits[1]?.memory_unit?.id).toBe('unit-1')
-    expect(result.hits[2]?.source_asset?.id).toBe('asset-1')
-    expect(result.hits[3]?.archive_anchor?.id).toBe('anchor-1')
+    expect(result.hits[1]?.source_asset?.id).toBe('asset-1')
+    expect(result.hits[1]?.session?.session_id).toBe('sess-1')
+    expect(result.hits[2]?.archive_anchor?.id).toBe('anchor-1')
+    expect(result.hits[2]?.session?.session_id).toBe('sess-1')
   })
 
   it('keeps mixed search results when limit=0', async () => {
@@ -202,7 +206,7 @@ describe('createDataLayerAPI', () => {
 
     const result = await api.search({ text: 'sqlite memory', target: 'mixed', limit: 0 })
 
-    expect(result.hits.map((hit) => hit.ref.id)).toEqual(['sess-1', 'unit-1', 'asset-1', 'anchor-1'])
+    expect(result.hits.map((hit) => hit.ref.id)).toEqual(['unit-1', 'asset-1', 'anchor-1'])
   })
 
   it('passes an effective limit to direct target searches when limit=0', async () => {
@@ -234,5 +238,18 @@ describe('createDataLayerAPI', () => {
       nodes: [{ id: 'entity:sqlite', labels: ['Technology'], properties: { name: 'sqlite' } }],
       edges: [],
     })
+  })
+
+  it('keeps session hits in mixed mode when no structured hit can resolve back to a session', async () => {
+    const api = createDataLayerAPI({
+      ...createDeps(),
+      getSessionForRef: async (ref: RetrievalReference) =>
+        ref.kind === 'session' ? buildSession(ref.id) : null,
+    })
+
+    const result = await api.search({ text: 'sqlite memory', target: 'mixed', limit: 10 })
+
+    expect(result.hits.map((hit) => hit.ref.id)).toEqual(['unit-1', 'asset-1', 'anchor-1', 'sess-1'])
+    expect(result.hits[3]?.session?.session_id).toBe('sess-1')
   })
 })

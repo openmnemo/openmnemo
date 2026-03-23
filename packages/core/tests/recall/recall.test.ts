@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
-import type { ManifestEntry } from '@openmnemo/types'
+import type { ManifestEntry, ParsedTranscript } from '@openmnemo/types'
 
 import {
   cwdMatches,
@@ -11,6 +11,9 @@ import {
   searchRecall,
   type RecallResult,
 } from '../../src/recall/recall.js'
+import { buildTranscriptExtractionBundle } from '../../src/memory/extraction.js'
+import { createVectorAdapter } from '../../src/storage/factory.js'
+import { MEMORY_UNIT_VECTOR_DIMS, MEMORY_UNIT_VECTOR_NAMESPACE, syncMemoryUnitVectors } from '../../src/memory/vector.js'
 import { upsertSearchIndex } from '../../src/transcript/db.js'
 import { createGraphAdapter } from '../../src/storage/factory.js'
 import { toPosixPath } from '../../src/utils/path.js'
@@ -48,6 +51,23 @@ function buildManifest(overrides: Partial<ManifestEntry> = {}): ManifestEntry {
 
 function insertTranscript(globalRoot: string, overrides: Partial<ManifestEntry>): void {
   upsertSearchIndex(join(globalRoot, 'index', 'search.sqlite'), buildManifest(overrides))
+}
+
+function buildParsedTranscript(
+  sessionId: string,
+  messages: ParsedTranscript['messages'],
+): ParsedTranscript {
+  return {
+    client: 'claude',
+    session_id: sessionId,
+    title: 'Session title',
+    started_at: '2024-06-01T10:00:00Z',
+    cwd: '/workspace/openmnemo',
+    branch: 'main',
+    messages,
+    tool_events: [],
+    source_path: `/tmp/${sessionId}.jsonl`,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -399,6 +419,64 @@ describe('searchRecall', () => {
     expect(result.source_counts.vector).toBe(0)
     expect(result.source_counts.graph).toBeGreaterThan(0)
     expect(result.results[0]?.session_id).toBe('sess-unit-graph')
+  })
+
+  it('aggregates unit-level vector hits back to sessions before mixed fusion', () => {
+    insertTranscript(tmpDir, {
+      session_id: 'sess-unit-vector',
+      raw_sha256: 'sha-unit-vector',
+      title: 'Design review',
+      started_at: '2024-06-04T10:00:00Z',
+      content: 'Authentication follow-up without the target retrieval phrase.',
+      commit_layer: 'fix: login redirect edge case',
+    })
+
+    const vector = createVectorAdapter({
+      indexDir: join(tmpDir, 'index'),
+      embedding_dims: MEMORY_UNIT_VECTOR_DIMS,
+      vector_namespace: MEMORY_UNIT_VECTOR_NAMESPACE,
+    })
+
+    const bundle = buildTranscriptExtractionBundle(
+      buildParsedTranscript('sess-unit-vector', [
+        {
+          role: 'user',
+          text: 'We should preserve unit first aggregation for retrieval ranking.',
+          timestamp: '2024-06-04T10:00:00Z',
+        },
+        {
+          role: 'assistant',
+          text: 'Unit first aggregation should roll memory unit hits back to the session.',
+          timestamp: '2024-06-04T10:00:05Z',
+        },
+      ]),
+      buildManifest({
+        session_id: 'sess-unit-vector',
+        raw_sha256: 'sha-unit-vector',
+        started_at: '2024-06-04T10:00:00Z',
+      }),
+      '# Clean transcript',
+    )
+
+    const extractedDir = join(tmpDir, 'index', 'extracted', 'claude', 'openmnemo', '2024', '06')
+    mkdirSync(extractedDir, { recursive: true })
+    writeFileSync(
+      join(extractedDir, 'sess-unit-vector.memory.json'),
+      JSON.stringify(bundle, null, 2),
+      'utf-8',
+    )
+
+    try {
+      syncMemoryUnitVectors(vector, bundle)
+    } finally {
+      vector.close()
+    }
+
+    const result = searchRecall(tmpDir, 'unit first aggregation', 5)
+
+    expect(result.source_counts.fts).toBe(0)
+    expect(result.source_counts.vector).toBeGreaterThan(0)
+    expect(result.results[0]?.session_id).toBe('sess-unit-vector')
   })
 
   it('treats limit=0 as no limit', () => {
