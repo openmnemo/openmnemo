@@ -107,6 +107,7 @@ export function createChatService(options: ChatServiceOptions): ChatService {
         request.options?.max_context_hits,
         defaultMaxContextHits,
       )
+      const sessionId = request.session_id?.trim()
       const retrieval = await options.dataLayer.search({
         text: lastMessage.content,
         target: 'mixed',
@@ -122,6 +123,7 @@ export function createChatService(options: ChatServiceOptions): ChatService {
           model,
           scope,
           retrieval_count: contextBundle.citations.length,
+          ...(sessionId ? { session_id: sessionId } : {}),
         },
       }
       yield {

@@ -7,7 +7,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { basename, dirname, extname, join, resolve, sep } from 'node:path'
 
-import type { ChatEvent, ChatRequest, ChatScope } from '@openmnemo/types'
+import type { ChatCitation, ChatEvent, ChatRequest, ChatScope } from '@openmnemo/types'
 
 // ---------------------------------------------------------------------------
 // Build command
@@ -71,6 +71,7 @@ interface ReportChatRuntime {
 }
 
 const MAX_CHAT_BODY_BYTES = 1024 * 1024
+const REPORT_BASE_PATH = '/'
 
 function findRepoRootFromReportDir(reportDir: string): string | null {
   let current = resolve(reportDir)
@@ -89,6 +90,35 @@ function findRepoRootFromReportDir(reportDir: string): string | null {
 
 function normalizeScope(scope: ChatScope | undefined): ChatScope {
   return scope ?? {}
+}
+
+function joinBasePath(basePath: string, relativePath: string): string {
+  const normalizedBase = (basePath || '/').replace(/\/+$/, '')
+  const normalizedPath = relativePath.replace(/^\/+/, '')
+  return `${normalizedBase}/${normalizedPath}`.replace(/^$/, '/')
+}
+
+function buildCitationHref(citation: ChatCitation, basePath: string): string | undefined {
+  if (!citation.session_client || !citation.session_artifact_stem) return undefined
+  return joinBasePath(
+    basePath,
+    `transcripts/${citation.session_client}/${citation.session_artifact_stem}.html`,
+  )
+}
+
+function enrichChatEvent(event: ChatEvent, basePath: string): ChatEvent {
+  if (event.type !== 'citation') return event
+
+  const href = event.citation.href ?? buildCitationHref(event.citation, basePath)
+  if (!href) return event
+
+  return {
+    ...event,
+    citation: {
+      ...event.citation,
+      href,
+    },
+  }
 }
 
 async function createReportChatRuntime(reportDir: string): Promise<ReportChatRuntime> {
@@ -184,6 +214,7 @@ async function handleChatHealth(
     ready: runtime.status.available,
     provider: runtime.status.provider,
     model: runtime.status.model,
+    base_path: REPORT_BASE_PATH,
     scope: runtime.status.scope,
     ...(runtime.status.reason ? { reason: runtime.status.reason } : {}),
   })
@@ -222,7 +253,7 @@ async function handleChatRequest(
 
   try {
     for await (const event of runtime.service.stream(body as ChatRequest)) {
-      writeSseEvent(res, event)
+      writeSseEvent(res, enrichChatEvent(event, REPORT_BASE_PATH))
     }
   } catch (error: unknown) {
     writeSseEvent(res, {

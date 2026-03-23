@@ -54,6 +54,7 @@ describe('createChatService', () => {
             branch: 'main',
             started_at: '2026-03-20T10:00:00Z',
             clean_content: 'We agreed to search units first.',
+            clean_path: '/memorytree/clean/codex/2026/03/session-1__deadbeef.md',
           },
         },
       ],
@@ -78,6 +79,7 @@ describe('createChatService', () => {
 
     const events = []
     for await (const event of service.stream({
+      session_id: 'chat-session-1',
       messages: [{ role: 'user', content: '  What changed last week?  ' }],
     })) {
       events.push(event)
@@ -104,6 +106,7 @@ describe('createChatService', () => {
         model: 'fake-model',
         retrieval_count: 1,
         scope: { project: 'openmnemo' },
+        session_id: 'chat-session-1',
       },
     })
     expect(events[3]).toMatchObject({
@@ -113,6 +116,8 @@ describe('createChatService', () => {
         id: 'memory_unit:1',
         title: 'Adopt unit-first retrieval',
         session_id: 'session-1',
+        session_client: 'codex',
+        session_artifact_stem: 'session-1__deadbeef',
       },
     })
     expect(events[4]).toMatchObject({

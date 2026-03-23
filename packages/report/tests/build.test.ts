@@ -196,6 +196,8 @@ I'll help with that!
     expect(dashHtml).toContain('<svg')
     expect(dashHtml).toContain('report-chat-root')
     expect(dashHtml).toContain('/api/chat/health')
+    expect(dashHtml).toContain('report-chat-reset')
+    expect(dashHtml).toContain('openmnemo-report-chat')
 
     // Individual transcript should exist
     const transcriptDir = join(output, 'transcripts', 'codex')

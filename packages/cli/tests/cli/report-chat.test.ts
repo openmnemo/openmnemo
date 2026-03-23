@@ -63,6 +63,7 @@ describe('report serve chat routes', () => {
       ready: true,
       provider: 'anthropic',
       model: 'test-model',
+      base_path: '/',
       scope: { project: 'demo-project' },
     })
   })
@@ -80,9 +81,18 @@ describe('report serve chat routes', () => {
         }),
         async *stream(request: unknown) {
           receivedRequests.push(request)
-          yield { type: 'meta', meta: { model: 'test-model', scope: { project: 'demo-project' }, retrieval_count: 1 } }
+          yield { type: 'meta', meta: { model: 'test-model', scope: { project: 'demo-project' }, retrieval_count: 1, session_id: 'chat-1' } }
           yield { type: 'delta', text: 'hello' }
-          yield { type: 'citation', citation: { kind: 'memory_unit', id: 'mu:1', title: 'Unit 1' } }
+          yield {
+            type: 'citation',
+            citation: {
+              kind: 'memory_unit',
+              id: 'mu:1',
+              title: 'Unit 1',
+              session_client: 'codex',
+              session_artifact_stem: 'session-1__deadbeef',
+            },
+          }
           yield { type: 'done', finish_reason: 'stop', text: 'hello' }
         },
       }),
@@ -111,6 +121,7 @@ describe('report serve chat routes', () => {
 
       req.on('error', reject)
       req.write(JSON.stringify({
+        session_id: 'chat-1',
         messages: [{ role: 'user', content: 'hello' }],
       }))
       req.end()
@@ -118,6 +129,7 @@ describe('report serve chat routes', () => {
 
     expect(receivedRequests).toEqual([
       {
+        session_id: 'chat-1',
         messages: [{ role: 'user', content: 'hello' }],
       },
     ])
@@ -125,5 +137,6 @@ describe('report serve chat routes', () => {
     expect(body).toContain('event: delta')
     expect(body).toContain('event: citation')
     expect(body).toContain('event: done')
+    expect(body).toContain('\"href\":\"/transcripts/codex/session-1__deadbeef.html\"')
   })
 })

@@ -14,6 +14,12 @@ export { createChatService } from './chat-service.js'
 export type { ChatContextBundle } from './context-builder.js'
 export { buildChatContext } from './context-builder.js'
 
+export type {
+  CompressedConversation,
+  CompressConversationOptions,
+} from './conversation.js'
+export { compressConversationMessages } from './conversation.js'
+
 export type { ChatPrompt, ChatPromptInput } from './prompt.js'
 export { buildChatPrompt, buildChatSystemPrompt } from './prompt.js'
 

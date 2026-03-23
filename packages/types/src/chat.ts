@@ -21,6 +21,7 @@ export interface ChatRequestOptions {
 }
 
 export interface ChatRequest {
+  session_id?: string
   messages: ChatMessage[]
   scope?: ChatScope
   options?: ChatRequestOptions
@@ -33,8 +34,12 @@ export interface ChatCitation {
   snippet?: string
   score?: number
   source?: RetrievalSource
+  href?: string
   project?: string
   session_id?: string
+  session_client?: string
+  session_title?: string
+  session_artifact_stem?: string
   started_at?: string
 }
 
@@ -42,6 +47,7 @@ export interface ChatResponseMeta {
   model: string
   scope: ChatScope
   retrieval_count: number
+  session_id?: string
 }
 
 export interface ChatMetaEvent {

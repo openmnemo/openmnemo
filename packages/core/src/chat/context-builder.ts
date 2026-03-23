@@ -5,6 +5,7 @@ import type {
   SessionRecord,
 } from '@openmnemo/types'
 
+import { basename } from 'node:path'
 import { truncate } from '../transcript/common.js'
 
 export interface ChatContextBundle {
@@ -56,6 +57,7 @@ function citationSnippet(hit: DataLayerSearchHit): string | undefined {
 
 function toCitation(hit: DataLayerSearchHit): ChatCitation {
   const session = hit.session
+  const sessionDetail = asSessionDetail(session)
   const citation: ChatCitation = {
     kind: hit.ref.kind,
     id: hit.ref.id,
@@ -69,7 +71,12 @@ function toCitation(hit: DataLayerSearchHit): ChatCitation {
   const snippet = citationSnippet(hit)
   if (snippet) citation.snippet = snippet
   if (session?.session_id) citation.session_id = session.session_id
+  if (session?.client) citation.session_client = session.client
+  if (session?.title) citation.session_title = session.title
   if (session?.started_at) citation.started_at = session.started_at
+  if (sessionDetail?.clean_path) {
+    citation.session_artifact_stem = basename(sessionDetail.clean_path, '.md')
+  }
 
   return citation
 }

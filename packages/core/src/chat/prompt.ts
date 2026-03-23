@@ -1,5 +1,7 @@
 import type { ChatMessage } from '@openmnemo/types'
 
+import { compressConversationMessages } from './conversation.js'
+
 export interface ChatPromptInput {
   messages: ChatMessage[]
   context: string
@@ -11,7 +13,8 @@ export interface ChatPrompt {
 }
 
 export function buildChatPrompt(input: ChatPromptInput): ChatPrompt {
-  const messages = input.messages.slice()
+  const compressed = compressConversationMessages(input.messages)
+  const messages = compressed.recentMessages.slice()
   const lastMessage = messages[messages.length - 1]
 
   if (!lastMessage || lastMessage.role !== 'user') {
@@ -35,6 +38,9 @@ export function buildChatPrompt(input: ChatPromptInput): ChatPrompt {
         content: [
           'You are answering a question about the local OpenMnemo memory store.',
           '',
+          ...(compressed.summary
+            ? ['Earlier conversation summary:', compressed.summary, '']
+            : []),
           'Retrieved context:',
           contextBlock,
           '',
