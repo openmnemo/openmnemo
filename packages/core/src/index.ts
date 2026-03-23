@@ -160,6 +160,8 @@ export {
   compareRetrievalReferences,
   dedupeRetrievalReferences,
   createDataLayerAPI,
+  createLocalDataLayerAPI,
+  createLocalRetrievalTools,
   TRANSCRIPT_MEMORY_EXTRACTION_VERSION,
   TRANSCRIPT_MEMORY_EXTRACTOR,
   buildTranscriptSourceAsset,
@@ -179,6 +181,7 @@ export {
 export type {
   DataLayerAPI,
   DataLayerDependencies,
+  LocalDataLayerOptions,
   MemoryGraphNode,
   MemoryGraphEdge,
   MemoryExtractionBundle,
