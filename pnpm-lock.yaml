@@ -66,6 +66,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.79.0
+        version: 0.79.0
       '@openmnemo/types':
         specifier: workspace:*
         version: link:../types

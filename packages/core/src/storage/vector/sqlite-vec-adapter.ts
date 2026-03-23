@@ -220,7 +220,7 @@ function buildMetadataFilter(
 
   return {
     whereClause: entries
-      .map(([key]) => `json_extract(metadata, ?) = ?`)
+      .map(() => `json_extract(metadata, ?) = ?`)
       .join(' AND '),
     values: entries.flatMap(([key, value]) => [
       jsonPathForMetadataKey(key),

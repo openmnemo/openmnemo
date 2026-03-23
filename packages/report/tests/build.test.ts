@@ -194,6 +194,8 @@ I'll help with that!
     // Dashboard should contain SVG
     const dashHtml = readFileSync(join(output, 'index.html'), 'utf-8')
     expect(dashHtml).toContain('<svg')
+    expect(dashHtml).toContain('report-chat-root')
+    expect(dashHtml).toContain('/api/chat/health')
 
     // Individual transcript should exist
     const transcriptDir = join(output, 'transcripts', 'codex')
