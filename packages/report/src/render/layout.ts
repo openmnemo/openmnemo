@@ -6,6 +6,7 @@ import { basename } from 'node:path'
 
 import type { ManifestEntry } from '@openmnemo/types'
 import type { Translations } from '../i18n/types.js'
+import { renderChatWidget } from './chat.js'
 import { REPORT_CSS } from './css.js'
 
 // ---------------------------------------------------------------------------
@@ -345,6 +346,7 @@ ${breadcrumb ? `${breadcrumb}\n` : ''}<div style="display:flex;justify-content:f
 ${content}
   </div>
 </div>
+${renderChatWidget()}
 </body>
 </html>`
 }

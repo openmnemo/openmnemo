@@ -35,6 +35,22 @@ export type {
   EntityGraphView,
   CommitContext,
   RetrievalTools,
+  ChatRole,
+  ChatProviderKind,
+  ChatMessage,
+  ChatProviderConfig,
+  ChatScope,
+  ChatRequestOptions,
+  ChatRequest,
+  ChatCitation,
+  ChatResponseMeta,
+  ChatMetaEvent,
+  ChatRetrievalEvent,
+  ChatDeltaEvent,
+  ChatCitationEvent,
+  ChatDoneEvent,
+  ChatErrorEvent,
+  ChatEvent,
 } from '@openmnemo/types'
 
 // Common utilities
@@ -225,3 +241,39 @@ export { SqliteGraphAdapter } from './storage/graph/sqlite-graph-adapter.js'
 // Storage factory
 export type { StorageConfig } from './storage/factory.js'
 export { createSearchAdapter, createVectorAdapter, createGraphAdapter } from './storage/factory.js'
+
+// Chat
+export type {
+  LLMProviderInput,
+  LLMProviderStatus,
+  LLMProviderDeltaEvent,
+  LLMProviderDoneEvent,
+  LLMProviderEvent,
+  LLMProvider,
+  ChatService,
+  ChatServiceOptions,
+  ChatContextBundle,
+  CompressedConversation,
+  CompressConversationOptions,
+  ChatPrompt,
+  ChatPromptInput,
+  AnthropicChatProviderOptions,
+  OpenAICompatibleChatProviderOptions,
+  LocalChatService,
+  LocalChatServiceOptions,
+  LocalChatServiceStatus,
+} from './chat/index.js'
+export {
+  LLMProviderError,
+  createChatProviderFromConfig,
+  createChatService,
+  buildChatContext,
+  compressConversationMessages,
+  buildChatPrompt,
+  buildChatSystemPrompt,
+  AnthropicChatProvider,
+  DEFAULT_ANTHROPIC_CHAT_MODEL,
+  OpenAICompatibleChatProvider,
+  DEFAULT_OPENAI_COMPATIBLE_CHAT_MODEL,
+  createLocalChatService,
+} from './chat/index.js'

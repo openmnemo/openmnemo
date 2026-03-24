@@ -85,3 +85,22 @@ export type {
   CommitContext,
   RetrievalTools,
 } from './memory.js'
+
+export type {
+  ChatRole,
+  ChatProviderKind,
+  ChatMessage,
+  ChatProviderConfig,
+  ChatScope,
+  ChatRequestOptions,
+  ChatRequest,
+  ChatCitation,
+  ChatResponseMeta,
+  ChatMetaEvent,
+  ChatRetrievalEvent,
+  ChatDeltaEvent,
+  ChatCitationEvent,
+  ChatDoneEvent,
+  ChatErrorEvent,
+  ChatEvent,
+} from './chat.js'
