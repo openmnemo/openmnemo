@@ -36,7 +36,7 @@ describe('OpenAICompatibleChatProvider', () => {
   })
 
   it('streams delta events from an OpenAI-compatible SSE endpoint', async () => {
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => new Response(
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(
       createStream([
         'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
         'data: {"choices":[{"delta":{"content":" world"},"finish_reason":"stop"}]}\n\n',
