@@ -17,6 +17,7 @@ export interface ChatService {
 export interface ChatServiceOptions {
   dataLayer: DataLayerAPI
   provider: LLMProvider
+  resolveProvider?: (request: ChatRequest) => LLMProvider | undefined
   defaultScope?: ChatScope
   defaultMaxContextHits?: number
 }
@@ -75,6 +76,14 @@ export function createChatService(options: ChatServiceOptions): ChatService {
 
   return {
     async *stream(request: ChatRequest): AsyncIterable<ChatEvent> {
+      let provider: LLMProvider
+      try {
+        provider = options.resolveProvider?.(request) ?? options.provider
+      } catch (error: unknown) {
+        yield toErrorEvent(error)
+        return
+      }
+
       const messages = request.messages.map((message) => ({
         ...message,
         content: normalizeMessageContent(message.content),
@@ -90,13 +99,11 @@ export function createChatService(options: ChatServiceOptions): ChatService {
         return
       }
 
-      const providerStatus = options.provider.getStatus()
+      const providerStatus = provider.getStatus()
       if (!providerStatus.available) {
         yield {
           type: 'error',
-          message: providerStatus.reason === 'missing_api_key'
-            ? 'ANTHROPIC_API_KEY is not set. Start the report server with a configured API key.'
-            : 'Chat provider is unavailable.',
+          message: providerStatus.message ?? 'Chat provider is unavailable.',
           ...(providerStatus.reason ? { code: providerStatus.reason } : {}),
         }
         return
@@ -115,7 +122,9 @@ export function createChatService(options: ChatServiceOptions): ChatService {
         ...(hasScope(scope) ? { scope } : {}),
       })
       const contextBundle = buildChatContext(retrieval.hits, maxContextHits)
-      const model = request.options?.model?.trim() || options.provider.defaultModel
+      const model = request.options?.model?.trim()
+        || request.provider?.model?.trim()
+        || provider.defaultModel
 
       yield {
         type: 'meta',
@@ -140,7 +149,7 @@ export function createChatService(options: ChatServiceOptions): ChatService {
       let finishReason = 'stop'
 
       try {
-        for await (const event of options.provider.stream({
+        for await (const event of provider.stream({
           system: prompt.system,
           messages: prompt.messages,
           model,

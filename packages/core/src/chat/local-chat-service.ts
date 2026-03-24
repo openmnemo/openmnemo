@@ -1,8 +1,9 @@
-import type { ChatScope } from '@openmnemo/types'
+import type { ChatProviderKind, ChatScope } from '@openmnemo/types'
 
 import { createLocalDataLayerAPI } from '../memory/local-runtime.js'
 import { createChatService, type ChatService } from './chat-service.js'
 import type { LLMProvider } from './llm-provider.js'
+import { createChatProviderFromConfig } from './provider-factory.js'
 import { AnthropicChatProvider, DEFAULT_ANTHROPIC_CHAT_MODEL } from './providers/anthropic.js'
 
 export interface LocalChatServiceStatus {
@@ -11,6 +12,8 @@ export interface LocalChatServiceStatus {
   available: boolean
   reason?: string
   scope: ChatScope
+  request_provider_config_supported: boolean
+  supported_providers: ChatProviderKind[]
 }
 
 export interface LocalChatService extends ChatService {
@@ -31,6 +34,9 @@ export function createLocalChatService(options: LocalChatServiceOptions): LocalC
   const service = createChatService({
     dataLayer: createLocalDataLayerAPI({ globalRoot: options.globalRoot }),
     provider,
+    resolveProvider(request) {
+      return createChatProviderFromConfig(request.provider) ?? provider
+    },
     ...(options.defaultScope ? { defaultScope: options.defaultScope } : {}),
   })
 
@@ -47,6 +53,8 @@ export function createLocalChatService(options: LocalChatServiceOptions): LocalC
         available: status.available,
         ...(status.reason ? { reason: status.reason } : {}),
         scope: options.defaultScope ?? {},
+        request_provider_config_supported: true,
+        supported_providers: ['anthropic', 'openai_compatible'],
       }
     },
   }

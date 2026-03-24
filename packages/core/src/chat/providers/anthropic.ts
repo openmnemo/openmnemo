@@ -37,7 +37,11 @@ export class AnthropicChatProvider implements LLMProvider {
   getStatus(): LLMProviderStatus {
     return this.apiKey
       ? { available: true }
-      : { available: false, reason: 'missing_api_key' }
+      : {
+        available: false,
+        reason: 'missing_api_key',
+        message: 'ANTHROPIC_API_KEY is not set. Start the report server with a configured API key.',
+      }
   }
 
   async *stream(input: LLMProviderInput): AsyncIterable<LLMProviderEvent> {

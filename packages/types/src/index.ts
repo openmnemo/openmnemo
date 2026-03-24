@@ -88,7 +88,9 @@ export type {
 
 export type {
   ChatRole,
+  ChatProviderKind,
   ChatMessage,
+  ChatProviderConfig,
   ChatScope,
   ChatRequestOptions,
   ChatRequest,

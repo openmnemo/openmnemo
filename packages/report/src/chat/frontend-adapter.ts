@@ -1,4 +1,4 @@
-﻿export interface ChatFrontendAdapterConfig {
+export interface ChatFrontendAdapterConfig {
   healthUrl: string
   chatUrl: string
   storagePrefix: string
@@ -29,8 +29,13 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
   var input = document.getElementById('report-chat-input');
   var sendBtn = document.getElementById('report-chat-send');
   var hintEl = document.getElementById('report-chat-hint');
+  var providerModeEl = document.getElementById('report-chat-provider-mode');
+  var modelEl = document.getElementById('report-chat-model');
+  var baseUrlEl = document.getElementById('report-chat-base-url');
+  var apiKeyEl = document.getElementById('report-chat-api-key');
+  var configNoteEl = document.getElementById('report-chat-config-note');
 
-  if (!toggle || !closeBtn || !resetBtn || !panel || !statusEl || !toggleMetaEl || !messagesEl || !emptyEl || !errorEl || !form || !input || !sendBtn || !hintEl) {
+  if (!toggle || !closeBtn || !resetBtn || !panel || !statusEl || !toggleMetaEl || !messagesEl || !emptyEl || !errorEl || !form || !input || !sendBtn || !hintEl || !providerModeEl || !modelEl || !baseUrlEl || !apiKeyEl || !configNoteEl) {
     return;
   }
 
@@ -50,17 +55,64 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     };
   }
 
+  function createDefaultChatConfig() {
+    return {
+      mode: 'server_default',
+      baseUrl: '',
+      apiKey: '',
+      model: '',
+    };
+  }
+
   function normalizeProjectKey(scope) {
     return (scope && typeof scope.project === 'string' && scope.project.trim()) ? scope.project.trim() : 'default';
   }
 
-  function getStorageKey(projectKey) {
+  function getSessionStorageKey(projectKey) {
     return config.storagePrefix + ':' + projectKey;
+  }
+
+  function getConfigStorageKey(projectKey) {
+    return config.storagePrefix + ':config:' + projectKey;
+  }
+
+  function getApiKeyStorageKey(projectKey) {
+    return config.storagePrefix + ':api-key:' + projectKey;
+  }
+
+  function normalizeStoredMessages(messages) {
+    return messages.filter(function(entry) {
+      return entry
+        && typeof entry === 'object'
+        && (entry.role === 'user' || entry.role === 'assistant')
+        && typeof entry.content === 'string';
+    }).map(function(entry) {
+      return {
+        role: entry.role,
+        content: entry.content,
+        citations: Array.isArray(entry.citations) ? entry.citations : [],
+        failed: entry.failed === true,
+      };
+    });
+  }
+
+  function buildPersistableMessages(messages) {
+    return normalizeStoredMessages(messages).filter(function(entry) {
+      return Boolean(entry.content.trim()) || entry.citations.length > 0;
+    });
+  }
+
+  function loadSessionApiKey(projectKey) {
+    try {
+      return sessionStorage.getItem(getApiKeyStorageKey(projectKey)) || '';
+    } catch (_error) {
+      return '';
+    }
   }
 
   function loadPersistedSession(projectKey) {
     try {
-      var raw = localStorage.getItem(getStorageKey(projectKey));
+      var raw = localStorage.getItem(getSessionStorageKey(projectKey));
       if (!raw) return createSession();
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object') return createSession();
@@ -68,37 +120,76 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
       return {
         id: typeof parsed.id === 'string' ? parsed.id : createSessionId(),
         updated_at: typeof parsed.updated_at === 'string' ? parsed.updated_at : nowIso(),
-        messages: parsed.messages.filter(function(entry) {
-          return entry && typeof entry === 'object' && (entry.role === 'user' || entry.role === 'assistant') && typeof entry.content === 'string';
-        }).map(function(entry) {
-          return {
-            role: entry.role,
-            content: entry.content,
-            citations: Array.isArray(entry.citations) ? entry.citations : [],
-          };
-        }),
+        messages: normalizeStoredMessages(parsed.messages),
       };
     } catch (_error) {
       return createSession();
     }
   }
 
+  function loadPersistedChatConfig(projectKey) {
+    var defaults = createDefaultChatConfig();
+    try {
+      var raw = localStorage.getItem(getConfigStorageKey(projectKey));
+      if (!raw) return defaults;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return defaults;
+      return {
+        mode: parsed.mode === 'openai_compatible' ? 'openai_compatible' : 'server_default',
+        baseUrl: typeof parsed.baseUrl === 'string' ? parsed.baseUrl : '',
+        apiKey: loadSessionApiKey(projectKey),
+        model: typeof parsed.model === 'string' ? parsed.model : '',
+      };
+    } catch (_error) {
+      return defaults;
+    }
+  }
+
   var state = {
     enabled: false,
-    ready: false,
+    serverReady: false,
     sending: false,
     basePath: config.basePath || '/',
     projectKey: 'default',
     scope: {},
-    session: createSession(),
+    session: loadPersistedSession('default'),
+    chatConfig: loadPersistedChatConfig('default'),
+    runtime: {
+      provider: 'anthropic',
+      model: '',
+      reason: '',
+      requestConfigSupported: false,
+      supportedProviders: [],
+    },
   };
 
   function saveSession() {
     try {
       state.session.updated_at = nowIso();
-      localStorage.setItem(getStorageKey(state.projectKey), JSON.stringify(state.session));
+      localStorage.setItem(getSessionStorageKey(state.projectKey), JSON.stringify({
+        id: state.session.id,
+        updated_at: state.session.updated_at,
+        messages: buildPersistableMessages(state.session.messages),
+      }));
     } catch (_error) {
       // Ignore localStorage failures.
+    }
+  }
+
+  function saveChatConfig() {
+    try {
+      localStorage.setItem(getConfigStorageKey(state.projectKey), JSON.stringify({
+        mode: state.chatConfig.mode,
+        baseUrl: state.chatConfig.baseUrl,
+        model: state.chatConfig.model,
+      }));
+      if (state.chatConfig.apiKey) {
+        sessionStorage.setItem(getApiKeyStorageKey(state.projectKey), state.chatConfig.apiKey);
+      } else {
+        sessionStorage.removeItem(getApiKeyStorageKey(state.projectKey));
+      }
+    } catch (_error) {
+      // Ignore storage failures.
     }
   }
 
@@ -122,14 +213,6 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     errorEl.textContent = message;
   }
 
-  function setComposerEnabled(enabled, placeholder) {
-    state.ready = enabled;
-    input.disabled = !enabled || state.sending;
-    sendBtn.disabled = !enabled || state.sending;
-    resetBtn.disabled = state.sending;
-    if (placeholder) input.placeholder = placeholder;
-  }
-
   function updateStatus(text, meta) {
     statusEl.textContent = text;
     toggleMetaEl.textContent = meta || 'Local Memory';
@@ -137,6 +220,10 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
 
   function updateHint(text) {
     hintEl.textContent = text;
+  }
+
+  function updateConfigNote(text) {
+    configNoteEl.textContent = text;
   }
 
   function clearMessages() {
@@ -148,14 +235,210 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     messagesEl.appendChild(emptyEl);
   }
 
+  function isRelayMode() {
+    return state.chatConfig.mode === 'openai_compatible';
+  }
+
+  function getTrimmedRelayConfig() {
+    return {
+      baseUrl: state.chatConfig.baseUrl.trim(),
+      apiKey: state.chatConfig.apiKey.trim(),
+      model: state.chatConfig.model.trim(),
+    };
+  }
+
+  function hasRelayConfig() {
+    var relayConfig = getTrimmedRelayConfig();
+    return Boolean(relayConfig.baseUrl && relayConfig.apiKey && relayConfig.model);
+  }
+
+  function canUsePageConfig() {
+    return state.enabled && state.runtime.requestConfigSupported;
+  }
+
+  function canCompose() {
+    if (state.sending) return false;
+    if (isRelayMode()) return canUsePageConfig() && hasRelayConfig();
+    return state.serverReady;
+  }
+
+  function getModeLabel() {
+    return isRelayMode() ? 'OpenAI-compatible relay' : 'Server default';
+  }
+
+  function getReadyHint() {
+    if (state.scope.project) return 'Project: ' + state.scope.project + ' | ' + getModeLabel();
+    return getModeLabel();
+  }
+
+  function getComposerPlaceholder() {
+    if (!state.enabled) {
+      return 'Run openmnemo report serve to enable AI Chat.';
+    }
+
+    if (isRelayMode()) {
+      if (!canUsePageConfig()) {
+        return 'This local report server does not support page-level relay settings.';
+      }
+      if (!hasRelayConfig()) {
+        return 'Fill Base URL, API Key, and Model above.';
+      }
+      return 'Ask about imported sessions, decisions, or context...';
+    }
+
+    if (state.serverReady) {
+      return 'Ask about imported sessions, decisions, or context...';
+    }
+
+    if (state.runtime.reason === 'missing_api_key') {
+      return 'Switch Connection to OpenAI-Compatible and fill your relay settings above.';
+    }
+
+    return 'Run openmnemo report serve to enable local AI Chat.';
+  }
+
+  function setComposerState() {
+    var relayMode = isRelayMode();
+    var relayInputsEnabled = relayMode && canUsePageConfig() && !state.sending;
+    input.disabled = !canCompose();
+    sendBtn.disabled = !canCompose();
+    resetBtn.disabled = state.sending;
+    providerModeEl.disabled = state.sending;
+    modelEl.disabled = !relayInputsEnabled;
+    baseUrlEl.disabled = !relayInputsEnabled;
+    apiKeyEl.disabled = !relayInputsEnabled;
+    input.placeholder = getComposerPlaceholder();
+  }
+
+  function buildStatusSnapshot() {
+    if (!state.enabled) {
+      if (state.runtime.reason === 'static_report') {
+        return {
+          text: 'This page is in static mode. AI Chat activates in openmnemo report serve.',
+          meta: 'Static Report',
+        };
+      }
+
+      if (state.runtime.reason === 'repo_root_not_found') {
+        return {
+          text: 'AI Chat is unavailable because this server could not infer the repository root.',
+          meta: 'Unavailable',
+        };
+      }
+
+      return {
+        text: 'Run openmnemo report serve to enable local AI Chat.',
+        meta: 'Local Memory',
+      };
+    }
+
+    if (isRelayMode()) {
+      if (!canUsePageConfig()) {
+        return {
+          text: 'This local report server does not accept page-level relay settings yet.',
+          meta: 'Unsupported',
+        };
+      }
+
+      if (!hasRelayConfig()) {
+        return {
+          text: 'Fill Base URL, API Key, and Model to use your OpenAI-compatible relay.',
+          meta: 'Config Needed',
+        };
+      }
+
+      var relayConfig = getTrimmedRelayConfig();
+      return {
+        text: state.scope.project
+          ? ('Ready via page relay for project ' + state.scope.project + '.')
+          : 'Ready via page relay.',
+        meta: relayConfig.model || 'Relay',
+      };
+    }
+
+    if (state.serverReady) {
+      return {
+        text: state.scope.project
+          ? ('Ready for project ' + state.scope.project + '.')
+          : 'Ready for local memory chat.',
+        meta: state.runtime.model || state.runtime.provider || 'Local Memory',
+      };
+    }
+
+    if (state.runtime.reason === 'missing_api_key') {
+      return {
+        text: 'Server default provider is not configured.',
+        meta: 'Config Needed',
+      };
+    }
+
+    return {
+      text: 'AI Chat is unavailable in this report session.',
+      meta: 'Unavailable',
+    };
+  }
+
+  function buildConfigNote() {
+    if (!state.enabled) {
+      return 'Base URL and model are saved locally in this browser. API key stays only in the current tab, and this page still needs openmnemo report serve as the local chat gateway.';
+    }
+
+    if (isRelayMode()) {
+      if (!canUsePageConfig()) {
+        return 'This server build does not support page-provided relay settings. Update openmnemo and retry.';
+      }
+      return 'Base URL and model are saved locally for this project. API key stays only in the current tab and is sent only to your local openmnemo report server.';
+    }
+
+    if (state.serverReady) {
+      return 'Using the server default provider. Switch Connection to OpenAI-Compatible if you want page-local relay settings.';
+    }
+
+    if (state.runtime.reason === 'missing_api_key') {
+      return 'Server default is missing credentials. Switch Connection to OpenAI-Compatible and fill your relay settings here.';
+    }
+
+    return 'Page-level relay config is available once the local report server is reachable.';
+  }
+
+  function syncRuntimeUi() {
+    var status = buildStatusSnapshot();
+    updateStatus(status.text, status.meta);
+    updateHint(state.sending ? 'Streaming answer...' : getReadyHint());
+    updateConfigNote(buildConfigNote());
+    setComposerState();
+  }
+
+  function syncConfigInputs() {
+    providerModeEl.value = state.chatConfig.mode;
+    modelEl.value = state.chatConfig.model || '';
+    baseUrlEl.value = state.chatConfig.baseUrl || '';
+    apiKeyEl.value = state.chatConfig.apiKey || '';
+  }
+
+  function persistChatConfigFromInputs() {
+    state.chatConfig = {
+      mode: providerModeEl.value === 'openai_compatible' ? 'openai_compatible' : 'server_default',
+      model: modelEl.value || '',
+      baseUrl: baseUrlEl.value || '',
+      apiKey: apiKeyEl.value || '',
+    };
+    saveChatConfig();
+    syncRuntimeUi();
+  }
+
   function resolveHref(href) {
     if (!href) return '';
-    if (/^(https?:)?\/\//i.test(href)) return href;
+    if (
+      href.startsWith('http://')
+      || href.startsWith('https://')
+      || href.startsWith('//')
+    ) return href;
     if (href.charAt(0) === '/') return href;
 
     var basePath = state.basePath || '/';
     if (!basePath.endsWith('/')) basePath += '/';
-    return basePath + href.replace(/^\//, '');
+    return basePath + (href.charAt(0) === '/' ? href.slice(1) : href);
   }
 
   function renderCitation(target, citation) {
@@ -242,8 +525,8 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     state.session = createSession();
     saveSession();
     renderSession();
-    updateHint(state.scope.project ? ('Project scope: ' + state.scope.project) : 'SSE local mode');
     showError('');
+    syncRuntimeUi();
   }
 
   function switchProjectScope(scope) {
@@ -252,15 +535,17 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     var sameProject = nextProjectKey === state.projectKey;
 
     state.scope = nextScope;
-    if (sameProject && state.session.messages.length > 0) {
-      updateHint(state.scope.project ? ('Project scope: ' + state.scope.project) : 'SSE local mode');
+    if (sameProject) {
+      syncRuntimeUi();
       return;
     }
 
     state.projectKey = nextProjectKey;
     state.session = loadPersistedSession(state.projectKey);
+    state.chatConfig = loadPersistedChatConfig(state.projectKey);
+    syncConfigInputs();
     renderSession();
-    updateHint(state.scope.project ? ('Project scope: ' + state.scope.project) : 'SSE local mode');
+    syncRuntimeUi();
   }
 
   function parseSseChunk(buffer, onEvent) {
@@ -298,6 +583,18 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     return buffer;
   }
 
+  function buildRequestMessages() {
+    return state.session.messages
+      .filter(function(entry) {
+        if (entry.role !== 'user' && entry.role !== 'assistant') return false;
+        if (entry.failed === true) return false;
+        return Boolean(typeof entry.content === 'string' && entry.content.trim());
+      })
+      .map(function(entry) {
+        return { role: entry.role, content: entry.content };
+      });
+  }
+
   async function consumeSse(stream, onEvent) {
     if (!stream) throw new Error('Streaming body is unavailable.');
     var reader = stream.getReader();
@@ -315,8 +612,16 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
 
   async function loadHealth() {
     if (window.location.protocol === 'file:') {
-      updateStatus('Open this report with openmnemo report serve to enable local AI Chat.', 'Static Report');
-      setComposerEnabled(false, 'Run openmnemo report serve to enable local AI Chat.');
+      state.enabled = false;
+      state.serverReady = false;
+      state.runtime = {
+        provider: 'static',
+        model: '',
+        reason: 'static_report',
+        requestConfigSupported: false,
+        supportedProviders: [],
+      };
+      syncRuntimeUi();
       return;
     }
 
@@ -325,35 +630,33 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
       if (!response.ok) throw new Error('health_failed');
       var payload = await response.json();
       state.enabled = Boolean(payload.enabled);
+      state.serverReady = Boolean(payload.ready);
       state.basePath = (typeof payload.base_path === 'string' && payload.base_path) ? payload.base_path : state.basePath;
+      state.runtime = {
+        provider: typeof payload.provider === 'string' ? payload.provider : 'anthropic',
+        model: typeof payload.model === 'string' ? payload.model : '',
+        reason: typeof payload.reason === 'string' ? payload.reason : '',
+        requestConfigSupported: Boolean(payload.request_provider_config_supported),
+        supportedProviders: Array.isArray(payload.supported_providers) ? payload.supported_providers : [],
+      };
       switchProjectScope(payload.scope || {});
-
-      if (payload.ready) {
-        updateStatus(
-          state.scope.project ? ('Ready for project ' + state.scope.project + '.') : 'Ready for local memory chat.',
-          payload.model || 'Anthropic'
-        );
-        setComposerEnabled(true, 'Ask about imported sessions, decisions, or context...');
-        return;
-      }
-
-      if (payload.reason === 'missing_api_key') {
-        updateStatus('ANTHROPIC_API_KEY is missing for this local server.', 'Config Needed');
-        setComposerEnabled(false, 'Set ANTHROPIC_API_KEY before starting openmnemo report serve.');
-        return;
-      }
-
-      updateStatus('AI Chat is unavailable in this report session.', 'Unavailable');
-      setComposerEnabled(false, 'Run openmnemo report serve to enable local AI Chat.');
     } catch (_error) {
-      updateStatus('This page is in static mode. AI Chat activates in openmnemo report serve.', 'Static Report');
-      setComposerEnabled(false, 'Run openmnemo report serve to enable local AI Chat.');
+      state.enabled = false;
+      state.serverReady = false;
+      state.runtime = {
+        provider: 'static',
+        model: '',
+        reason: 'static_report',
+        requestConfigSupported: false,
+        supportedProviders: [],
+      };
+      syncRuntimeUi();
     }
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
-    if (!state.ready || state.sending) return;
+    if (!canCompose() || state.sending) return;
 
     var text = input.value.trim();
     if (!text) return;
@@ -361,12 +664,11 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     showError('');
     input.value = '';
     state.sending = true;
-    setComposerEnabled(true, 'Waiting for response...');
-    updateHint('Streaming answer...');
+    syncRuntimeUi();
 
     var userEntry = { role: 'user', content: text };
     state.session.messages.push(userEntry);
-    var assistantEntry = { role: 'assistant', content: '', citations: [] };
+    var assistantEntry = { role: 'assistant', content: '', citations: [], failed: false };
     state.session.messages.push(assistantEntry);
     saveSession();
     renderSession();
@@ -384,22 +686,33 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     }
 
     try {
+      var requestBody = {
+        session_id: state.session.id,
+        messages: buildRequestMessages(),
+        scope: state.scope,
+        options: {
+          stream: true,
+          max_context_hits: 8,
+        },
+      };
+
+      if (isRelayMode()) {
+        var relayConfig = getTrimmedRelayConfig();
+        requestBody.provider = {
+          kind: 'openai_compatible',
+          base_url: relayConfig.baseUrl,
+          api_key: relayConfig.apiKey,
+          model: relayConfig.model,
+        };
+      }
+
       var response = await fetch(config.chatUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'text/event-stream',
         },
-        body: JSON.stringify({
-          session_id: state.session.id,
-          messages: state.session.messages
-            .filter(function(entry) { return entry.role === 'user' || entry.role === 'assistant'; })
-            .map(function(entry) { return { role: entry.role, content: entry.content }; }),
-          options: {
-            stream: true,
-            max_context_hits: 8,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -454,16 +767,17 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
       }
 
       assistantEntry.content = assistantText || '(empty response)';
+      assistantEntry.failed = false;
       saveSession();
-      updateHint(state.scope.project ? ('Project scope: ' + state.scope.project) : 'SSE local mode');
     } catch (error) {
-      assistantEntry.content = assistantText || 'Unable to complete this request.';
+      assistantEntry.failed = true;
+      assistantEntry.content = assistantText || 'Request failed. See error below.';
       if (assistantView && assistantView.bubble) assistantView.bubble.textContent = assistantEntry.content;
       saveSession();
       showError(error instanceof Error ? error.message : 'Unknown chat error.');
     } finally {
       state.sending = false;
-      setComposerEnabled(state.ready, 'Ask about imported sessions, decisions, or context...');
+      syncRuntimeUi();
       scrollMessages();
     }
   }
@@ -480,6 +794,17 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     resetSession();
   });
 
+  providerModeEl.addEventListener('change', function() {
+    if (providerModeEl.value === 'openai_compatible' && !modelEl.value.trim()) {
+      modelEl.value = 'gpt-4o-mini';
+    }
+    persistChatConfigFromInputs();
+  });
+
+  [modelEl, baseUrlEl, apiKeyEl].forEach(function(element) {
+    element.addEventListener('input', persistChatConfigFromInputs);
+  });
+
   form.addEventListener('submit', handleSubmit);
   input.addEventListener('keydown', function(event) {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -488,6 +813,9 @@ export function renderChatFrontendAdapterScript(config: ChatFrontendAdapterConfi
     }
   });
 
+  syncConfigInputs();
+  renderSession();
+  syncRuntimeUi();
   void loadHealth();
 })();
 </script>`

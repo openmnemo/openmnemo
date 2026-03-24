@@ -198,6 +198,9 @@ I'll help with that!
     expect(dashHtml).toContain('/api/chat/health')
     expect(dashHtml).toContain('report-chat-reset')
     expect(dashHtml).toContain('openmnemo-report-chat')
+    expect(dashHtml).toContain('report-chat-provider-mode')
+    expect(dashHtml).toContain('report-chat-base-url')
+    expect(dashHtml).toContain('report-chat-api-key')
 
     // Individual transcript should exist
     const transcriptDir = join(output, 'transcripts', 'codex')

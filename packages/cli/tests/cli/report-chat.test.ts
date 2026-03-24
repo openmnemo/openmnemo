@@ -36,6 +36,8 @@ describe('report serve chat routes', () => {
           model: 'test-model',
           available: true,
           scope: { project: 'demo-project' },
+          request_provider_config_supported: true,
+          supported_providers: ['anthropic', 'openai_compatible'],
         }),
         async *stream() {
           yield { type: 'done', finish_reason: 'stop', text: '' }
@@ -65,6 +67,8 @@ describe('report serve chat routes', () => {
       model: 'test-model',
       base_path: '/',
       scope: { project: 'demo-project' },
+      request_provider_config_supported: true,
+      supported_providers: ['anthropic', 'openai_compatible'],
     })
   })
 
@@ -78,6 +82,8 @@ describe('report serve chat routes', () => {
           model: 'test-model',
           available: true,
           scope: { project: 'demo-project' },
+          request_provider_config_supported: true,
+          supported_providers: ['anthropic', 'openai_compatible'],
         }),
         async *stream(request: unknown) {
           receivedRequests.push(request)
@@ -123,6 +129,12 @@ describe('report serve chat routes', () => {
       req.write(JSON.stringify({
         session_id: 'chat-1',
         messages: [{ role: 'user', content: 'hello' }],
+        provider: {
+          kind: 'openai_compatible',
+          base_url: 'https://relay.example.com/v1',
+          api_key: 'relay-key',
+          model: 'openai/gpt-4.1-mini',
+        },
       }))
       req.end()
     })
@@ -131,6 +143,12 @@ describe('report serve chat routes', () => {
       {
         session_id: 'chat-1',
         messages: [{ role: 'user', content: 'hello' }],
+        provider: {
+          kind: 'openai_compatible',
+          base_url: 'https://relay.example.com/v1',
+          api_key: 'relay-key',
+          model: 'openai/gpt-4.1-mini',
+        },
       },
     ])
     expect(body).toContain('event: meta')

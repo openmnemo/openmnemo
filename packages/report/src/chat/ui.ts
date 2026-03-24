@@ -65,6 +65,62 @@
   background: color-mix(in srgb, var(--bg-secondary) 82%, transparent);
 }
 
+.report-chat-config {
+  padding: 0.85rem 1rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 92%, transparent), transparent);
+}
+
+.report-chat-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.report-chat-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.report-chat-field-span-2 {
+  grid-column: 1 / -1;
+}
+
+.report-chat-field-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.report-chat-field-input,
+.report-chat-field-select {
+  width: 100%;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+  color: var(--text);
+  padding: 0.62rem 0.72rem;
+  font: inherit;
+}
+
+.report-chat-field-input:disabled,
+.report-chat-field-select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.report-chat-config-note {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
 .report-chat-title {
   font-size: 1rem;
   font-weight: 700;
@@ -244,6 +300,14 @@
     width: auto;
     height: min(72vh, 620px);
   }
+
+  .report-chat-config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-chat-field-span-2 {
+    grid-column: auto;
+  }
 }
 `
 
@@ -262,6 +326,50 @@ export function renderChatWidgetShell(): string {
       <div class="report-chat-header-actions">
         <button class="report-chat-reset" id="report-chat-reset" type="button">New</button>
         <button class="report-chat-close" id="report-chat-close" type="button" aria-label="Close chat">x</button>
+      </div>
+    </div>
+    <div class="report-chat-config" id="report-chat-config">
+      <div class="report-chat-config-grid">
+        <label class="report-chat-field">
+          <span class="report-chat-field-label">Connection</span>
+          <select class="report-chat-field-select" id="report-chat-provider-mode">
+            <option value="server_default">Server Default</option>
+            <option value="openai_compatible">OpenAI-Compatible</option>
+          </select>
+        </label>
+        <label class="report-chat-field">
+          <span class="report-chat-field-label">Model</span>
+          <input
+            class="report-chat-field-input"
+            id="report-chat-model"
+            type="text"
+            placeholder="gpt-4o-mini"
+            autocomplete="off"
+          />
+        </label>
+        <label class="report-chat-field report-chat-field-span-2">
+          <span class="report-chat-field-label">Base URL</span>
+          <input
+            class="report-chat-field-input"
+            id="report-chat-base-url"
+            type="text"
+            placeholder="https://your-relay.example.com/v1"
+            autocomplete="url"
+          />
+        </label>
+        <label class="report-chat-field report-chat-field-span-2">
+          <span class="report-chat-field-label">API Key</span>
+          <input
+            class="report-chat-field-input"
+            id="report-chat-api-key"
+            type="password"
+            placeholder="sk-..."
+            autocomplete="off"
+          />
+        </label>
+      </div>
+      <div class="report-chat-config-note" id="report-chat-config-note">
+        Relay settings are saved locally in this browser for the current project.
       </div>
     </div>
     <div class="report-chat-messages" id="report-chat-messages">

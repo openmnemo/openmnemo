@@ -133,7 +133,11 @@ describe('createChatService', () => {
       provider: {
         name: 'fake',
         defaultModel: 'fake-model',
-        getStatus: () => ({ available: false, reason: 'missing_api_key' }),
+        getStatus: () => ({
+          available: false,
+          reason: 'missing_api_key',
+          message: 'ANTHROPIC_API_KEY is not set. Start the report server with a configured API key.',
+        }),
         async *stream() {
           yield { type: 'done', reason: 'stop' }
         },
@@ -154,5 +158,80 @@ describe('createChatService', () => {
         code: 'missing_api_key',
       },
     ])
+  })
+
+  it('uses a request-scoped provider override when page config is supplied', async () => {
+    const defaultProvider: LLMProvider = {
+      name: 'anthropic',
+      defaultModel: 'claude-haiku-4-5-20251001',
+      getStatus: () => ({
+        available: false,
+        reason: 'missing_api_key',
+        message: 'ANTHROPIC_API_KEY is not set. Start the report server with a configured API key.',
+      }),
+      async *stream() {
+        yield { type: 'done', reason: 'stop' }
+      },
+    }
+    const relayProvider: LLMProvider = {
+      name: 'openai_compatible',
+      defaultModel: 'gpt-4o-mini',
+      getStatus: () => ({ available: true }),
+      async *stream() {
+        yield { type: 'delta', text: 'Relay answer.' }
+        yield { type: 'done', reason: 'stop' }
+      },
+    }
+    const search = vi.fn(async () => ({
+      query: {
+        text: 'Can relay config override server auth?',
+        target: 'mixed' as const,
+        limit: 8,
+      },
+      hits: [],
+    }))
+
+    const service = createChatService({
+      dataLayer: createDataLayer(search),
+      provider: defaultProvider,
+      resolveProvider(request) {
+        return request.provider?.kind === 'openai_compatible' ? relayProvider : defaultProvider
+      },
+    })
+
+    const events = []
+    for await (const event of service.stream({
+      messages: [{ role: 'user', content: 'Can relay config override server auth?' }],
+      provider: {
+        kind: 'openai_compatible',
+        base_url: 'https://relay.example.com/v1',
+        api_key: 'relay-key',
+        model: 'openai/gpt-4.1-mini',
+      },
+    })) {
+      events.push(event)
+    }
+
+    expect(search).toHaveBeenCalledWith({
+      text: 'Can relay config override server auth?',
+      target: 'mixed',
+      limit: 8,
+    })
+    expect(events.map((event) => event.type)).toEqual([
+      'meta',
+      'retrieval',
+      'delta',
+      'done',
+    ])
+    expect(events[0]).toMatchObject({
+      type: 'meta',
+      meta: {
+        model: 'openai/gpt-4.1-mini',
+      },
+    })
+    expect(events[3]).toMatchObject({
+      type: 'done',
+      text: 'Relay answer.',
+    })
   })
 })

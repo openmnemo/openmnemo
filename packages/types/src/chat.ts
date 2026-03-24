@@ -1,10 +1,18 @@
 import type { RetrievalRefKind, RetrievalSource } from './memory.js'
 
 export type ChatRole = 'user' | 'assistant'
+export type ChatProviderKind = 'anthropic' | 'openai_compatible'
 
 export interface ChatMessage {
   role: ChatRole
   content: string
+}
+
+export interface ChatProviderConfig {
+  kind: ChatProviderKind
+  api_key?: string
+  base_url?: string
+  model?: string
 }
 
 export interface ChatScope {
@@ -25,6 +33,7 @@ export interface ChatRequest {
   messages: ChatMessage[]
   scope?: ChatScope
   options?: ChatRequestOptions
+  provider?: ChatProviderConfig
 }
 
 export interface ChatCitation {

@@ -10,6 +10,7 @@ export interface LLMProviderInput {
 export interface LLMProviderStatus {
   available: boolean
   reason?: string
+  message?: string
 }
 
 export interface LLMProviderDeltaEvent {

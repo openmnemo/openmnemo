@@ -7,7 +7,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { basename, dirname, extname, join, resolve, sep } from 'node:path'
 
-import type { ChatCitation, ChatEvent, ChatRequest, ChatScope } from '@openmnemo/types'
+import type { ChatCitation, ChatEvent, ChatProviderKind, ChatRequest, ChatScope } from '@openmnemo/types'
 
 // ---------------------------------------------------------------------------
 // Build command
@@ -58,6 +58,8 @@ interface ReportChatStatus {
   available: boolean
   reason?: string
   scope: ChatScope
+  request_provider_config_supported?: boolean
+  supported_providers?: ChatProviderKind[]
 }
 
 interface ReportChatService {
@@ -131,6 +133,8 @@ async function createReportChatRuntime(reportDir: string): Promise<ReportChatRun
         available: false,
         reason: 'repo_root_not_found',
         scope: {},
+        request_provider_config_supported: false,
+        supported_providers: [],
       },
     }
   }
@@ -216,6 +220,8 @@ async function handleChatHealth(
     model: runtime.status.model,
     base_path: REPORT_BASE_PATH,
     scope: runtime.status.scope,
+    request_provider_config_supported: Boolean(runtime.status.request_provider_config_supported),
+    supported_providers: runtime.status.supported_providers ?? [],
     ...(runtime.status.reason ? { reason: runtime.status.reason } : {}),
   })
 }
@@ -281,6 +287,8 @@ export function createReportServer(opts: CmdReportServeOptions): import('node:ht
         available: false,
         reason: 'chat_runtime_init_failed',
         scope: {},
+        request_provider_config_supported: false,
+        supported_providers: [],
       },
     } satisfies ReportChatRuntime
   })

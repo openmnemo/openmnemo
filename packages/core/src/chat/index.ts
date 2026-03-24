@@ -7,6 +7,7 @@ export type {
   LLMProvider,
 } from './llm-provider.js'
 export { LLMProviderError } from './llm-provider.js'
+export { createChatProviderFromConfig } from './provider-factory.js'
 
 export type { ChatService, ChatServiceOptions } from './chat-service.js'
 export { createChatService } from './chat-service.js'
@@ -30,6 +31,14 @@ export {
   AnthropicChatProvider,
   DEFAULT_ANTHROPIC_CHAT_MODEL,
 } from './providers/anthropic.js'
+
+export type {
+  OpenAICompatibleChatProviderOptions,
+} from './providers/openai-compatible.js'
+export {
+  OpenAICompatibleChatProvider,
+  DEFAULT_OPENAI_COMPATIBLE_CHAT_MODEL,
+} from './providers/openai-compatible.js'
 
 export type {
   LocalChatService,

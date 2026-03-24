@@ -36,7 +36,9 @@ export type {
   CommitContext,
   RetrievalTools,
   ChatRole,
+  ChatProviderKind,
   ChatMessage,
+  ChatProviderConfig,
   ChatScope,
   ChatRequestOptions,
   ChatRequest,
@@ -256,12 +258,14 @@ export type {
   ChatPrompt,
   ChatPromptInput,
   AnthropicChatProviderOptions,
+  OpenAICompatibleChatProviderOptions,
   LocalChatService,
   LocalChatServiceOptions,
   LocalChatServiceStatus,
 } from './chat/index.js'
 export {
   LLMProviderError,
+  createChatProviderFromConfig,
   createChatService,
   buildChatContext,
   compressConversationMessages,
@@ -269,5 +273,7 @@ export {
   buildChatSystemPrompt,
   AnthropicChatProvider,
   DEFAULT_ANTHROPIC_CHAT_MODEL,
+  OpenAICompatibleChatProvider,
+  DEFAULT_OPENAI_COMPATIBLE_CHAT_MODEL,
   createLocalChatService,
 } from './chat/index.js'
