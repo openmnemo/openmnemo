@@ -20,7 +20,7 @@
 - Keep raw transcripts in both this repository's `Memory/06_transcripts/raw/` mirror and the user-level MemoryTree archive.
 - Keep this repository mirror limited to transcripts that belong to the current project. Archive unrelated projects in the global MemoryTree archive only.
 - Generate cleaned transcript indexes with deterministic code, not model-generated rewriting.
-- Raw transcript upload permission for this repository: not set. Ask the user before the first raw transcript commit or push, then record the answer here.
+- Raw transcript upload permission for this repository: user approved on 2026-03-26 for the explicitly selected Memory discussion materials being committed for this project, including `Memory/chat-memo_62_20260322075923/`, `Memory/doubao_20260316153420_是这样的_OpenClaw就是O_P_E_N_C_L_A_W.txt`, and `Memory/doubao_20260321101654_https_github_com_openmnemo_o.txt`. Future raw transcript uploads outside this approved set should still be confirmed if scope is unclear.
 - If raw transcript uploads are not approved, keep `Memory/06_transcripts/raw/**` unstaged and commit only cleaned transcript indexes or manifests for this repository.
 
 ## Git Rules

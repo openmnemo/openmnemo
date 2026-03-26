@@ -1,0 +1,113 @@
+Title: agent-browser   如何在openclaw中安装这个skill
+URL: https://www.doubao.com/chat/38416629094618114
+Platform: 豆包
+Created: 2026-03-16 15:31:30
+Messages: 4
+
+User: [2026-03-16 15:31:30]
+agent-browser   如何在openclaw中安装这个skill
+
+AI: [2026-03-16 15:31:30]
+我需要先搜索一下 OpenClaw 和 agent-browser skill 的相关信息，以便给你提供准确的安装步骤。
+
+User: [2026-03-16 15:31:30]
+agent-browser   如何在openclaw中安装这个skill
+
+AI: [2026-03-16 15:31:30]
+OpenClaw 安装 agent-browser Skill 完整教程
+agent-browser 是 OpenClaw 核心必装技能，可让 AI 实现浏览器自动化操作、网页抓取、表单填写、截图等能力，以下是完整可落地的安装步骤。
+一、前置环境检查
+安装前请确保满足以下基础条件：
+已完成 OpenClaw 本体安装，可通过终端执行 openclaw --version 验证，输出版本号即为正常
+Node.js 版本 ≥ 22，执行 node -v 可查看版本
+终端具备正常网络访问能力（国内用户建议开启稳定网络环境，避免拉取失败）
+二、核心安装方法（3 种可选，优先选第一种）
+方法一：ClawHub CLI 一键安装（官方推荐，最稳定）
+这是 OpenClaw 官方首选的技能安装方式，全程自动完成，无需手动配置路径。
+（可选）提前安装 ClawHub CLI 工具，终端执行：
+bash
+运行
+npm install -g clawhub
+
+若不想提前安装，可直接使用下方 npx 免安装命令执行
+执行 agent-browser 安装命令：
+bash
+运行
+# 已安装ClawHub CLI 用这个
+clawhub install agent-browser
+
+# 免安装直接执行 用这个
+npx clawhub@latest install agent-browser
+
+等待终端输出 install successfully，即完成核心技能包安装
+方法二：Web UI 可视化安装（适合不熟悉命令行的用户）
+终端执行命令启动 OpenClaw 网页面板：
+bash
+运行
+openclaw ui
+
+浏览器自动打开面板（默认地址 http://localhost:8888），左侧菜单栏进入 Agents 页面
+选择你要安装技能的目标 Agent，切换到 Skills 标签页
+在技能搜索框输入 agent-browser，找到对应技能后点击 Install 按钮
+安装完成后，在已安装技能列表中，开启该技能的启用开关即可
+方法三：手动离线安装（适合网络受限场景）
+下载 agent-browser 源码包：前往 ClawHub 技能页 下载 zip 压缩包，或从 GitHub 拉取源码
+找到 OpenClaw 技能存放目录：
+表格
+安装范围	目录路径	说明
+全局生效	~/.openclaw/skills/	所有 Agent 都可使用
+单 Agent 生效	<Agent工作区路径>/skills/	仅当前选中的 Agent 可用
+在上述 skills 目录下，新建 agent-browser 文件夹，将下载的压缩包完整解压到该文件夹内
+关键校验：确保解压后的根目录存在 SKILL.md 文件（这是 OpenClaw 识别技能的核心标识）
+重启 OpenClaw 服务（终端重启 openclaw ui 即可），完成安装
+三、必装配套组件：Chrome 浏览器扩展
+agent-browser 必须配合 openclaw-browser-relay 扩展才能实现浏览器控制，以下是两种安装方式：
+方式 1：Chrome 应用商店在线安装（推荐）
+打开 Chrome/Edge 浏览器，访问扩展官方地址：
+https://chromewebstore.google.com/detail/openclaw-browser-relay/nglingapjinhecnfejdcpihlpneeadjp
+点击「添加至 Chrome」，完成扩展安装
+点击浏览器右上角扩展图标，确认扩展与本地 OpenClaw 服务连接正常
+方式 2：离线手动安装（无法访问应用商店时）
+终端执行命令，自动下载扩展文件到本地：
+bash
+运行
+openclaw browser extension install
+
+命令执行完成后，会输出扩展的本地存放路径，复制该路径
+打开 Chrome 浏览器，地址栏输入 chrome://extensions/，开启右上角「开发者模式」
+点击页面左侧「加载已解压的扩展程序」，选择刚才复制的扩展文件夹，完成安装
+四、安装结果验证
+1. 命令行状态校验
+执行以下命令，确认技能正常就绪：
+bash
+运行
+# 查看所有已安装技能，确认列表中有 agent-browser
+openclaw skills list --all
+
+# 查看该技能详情，确认状态为 ready
+openclaw skills info agent-browser
+
+2. 功能可用性校验
+打开 OpenClaw 对话界面，输入测试指令：用 agent-browser 打开百度首页，截取页面完整截图若 AI 正常执行指令、完成页面打开与截图，即代表全流程安装成功。
+五、常用配置与避坑指南
+国内用户搜索引擎切换（解决 Google 无法访问问题）
+bash
+运行
+openclaw config set skills.agent-browser.defaultSearchEngine "bing"
+
+服务器无桌面环境配置（无头浏览器模式）
+bash
+运行
+openclaw config set skills.agent-browser.headless true
+
+升级技能到最新版本
+bash
+运行
+clawhub update agent-browser
+
+常见问题排查
+安装提示 rate limit exceeded：ClawHub API 限流，等待几分钟后重试，或切换手动安装方式
+技能安装后不显示：确认安装到了正确的工作区目录，重启 OpenClaw 服务，检查 SKILL.md 文件是否存在
+浏览器无法控制：检查扩展是否正常启用，本地防火墙是否拦截了 OpenClaw 端口，重启浏览器与 OpenClaw 服务
+权限不足报错：Windows 用户使用管理员权限打开 PowerShell，mac/Linux 用户在命令前加 sudo 执行
+

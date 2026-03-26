@@ -1,0 +1,27 @@
+Title: {"detail":"The 'gpt-5.3-codex' model is not suppor...
+URL: https://www.doubao.com/chat/38416306837719810
+Platform: 豆包
+Created: 2026-03-10 10:06:56
+Messages: 2
+
+User: [2026-03-10 10:06:56]
+{"detail":"The 'gpt-5.3-codex' model is not supported when using Codex with a ChatGPT account."}
+
+AI: [2026-03-10 10:07:03]
+这个报错的意思很明确：
+使用 ChatGPT 账号时，不支持 gpt-5.3-codex 这个模型。
+原因
+Codex 模型（代码专用模型） 属于 OpenAI 早期的代码模型，现在已经逐步废弃 / 下架，被新版 gpt-3.5-turbo、gpt-4/gpt-4o 等替代。
+普通 ChatGPT 账号 没有权限调用旧版 Codex 系列模型（包括你写的 gpt-5.3-codex 这类不存在 / 已停用的版本）。
+实际上 OpenAI 并没有公开叫 gpt-5.3-codex 的官方模型，这个名称大概率是：
+写错 / 拼错
+某个第三方接口 / 代理自定义的模型名
+过时文档里的遗留名称
+解决办法
+把代码 / 配置里的模型名改成 ChatGPT 支持的官方模型，例如：
+gpt-3.5-turbo
+gpt-4
+gpt-4o
+不要使用任何带 codex 的旧模型。
+如果你把调用代码（Python/API 配置）发出来，我可以直接帮你改成可用版本。
+
