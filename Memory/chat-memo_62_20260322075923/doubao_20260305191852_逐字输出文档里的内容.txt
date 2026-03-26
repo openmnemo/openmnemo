@@ -1,0 +1,426 @@
+Title: 逐字输出文档里的内容
+URL: https://www.doubao.com/chat/38415682891231490
+Platform: 豆包
+Created: 2026-03-05 19:18:52
+Messages: 2
+
+User: [2026-03-05 19:18:52]
+逐字输出文档里的内容
+
+AI: [2026-03-05 19:20:53]
+技术架构白皮书.md 完整内容
+# AgentCrawl Plan8 技术架构白皮书（全新重构）
+版本：v8.0日期：2026-03-05受众：架构师、后端 / 前端工程师、平台运维、技术管理者
+1. 目标与边界
+Plan8 的技术目标是把历史方案中的 “可执行细节” 并回主干：
+面向普通办公用户，而非开发者优先。
+保留 OpenClaw 的 IM 交互能力与 Web 门户。
+以 Gitea 作为版本化协作与数据底座。
+以 “一切皆仓库” 驱动插件与流程生态。
+通过三层信任架构保证可控、可追溯、可回滚。
+2. 参考总架构
+text
+[用户层]
+IM (Telegram/微信/钉钉/Slack) | OpenClaw Web | API
+|
+v
+[探索层 / OpenClaw]
+意图解析 | 术语翻译 | 记忆提取 | 建议生成
+|
+v
+[命令层 / CLI Gateway (Rust)]
+Schema 校验 | 权限校验 | 快照管理 | 审计日志
+|
+v
+[工作流层 / Workflow Engine]
+确定性执行 | 节点持久化 | 重试与补偿
+|
+v
+[协作与存储层]
+Gitea + Flarum/Discourse + Redis + PostgreSQL/MySQL
+|
+v
+[索引层]
+Meilisearch + Qdrant + CLIP/SigLIP + Whisper + File Search Adapter
+
+3. 三层信任架构（Plan8 强制）
+表格
+层级	自由度	输出类型	允许动作
+探索层（OpenClaw）	高	建议	读、分析、建议，不直接落关键写
+命令层（CLI Gateway）	中	事实	关键状态写入、快照、审计
+工作流层（Engine）	低	保证	版本冻结插件的确定性执行
+3.1 写操作唯一入口
+架构红线：所有关键状态变更必须经过 CLI Gateway，禁止绕过。
+3.2 可逆执行链路
+所有写操作先生成快照。
+audit replay 默认 dry-run。
+reexecute 必须生成新执行记录，不覆盖历史。
+4. 架构红线规则（必须执行）
+关键状态写必须经 CLI Gateway。
+工作流层仅调用 “已发布且版本冻结” 的插件。
+所有写操作必须可追溯（请求、执行者、结果、快照）。
+audit replay 默认 dry-run。
+采集一期必须具备：账号池、代理池、会话租约、断点续爬。
+免费试用默认只读（限制高风险写操作）。
+合规边界优先：禁止绕过访问控制，禁止采集受限内容。
+5. Promotion Pipeline（能力晋升）
+text
+OpenClaw 探索可行
+-> 达到稳定标准（30天，成功率>=98%）
+-> 固化为 CLI 命令
+-> 再固化为工作流插件（可复用、可运营）
+
+作用：把高 Token 的临时智能，持续转化为低成本的确定性能力。
+6. 办公语义与 Gitea 映射
+表格
+办公语义	Gitea 底层	备注
+项目	Repository	项目空间与文件历史
+任务	Issue + Projects	任务看板与状态流转
+审批	Pull Request	评审、通过、驳回
+知识库	Wiki	团队文档沉淀
+自动化	Actions + Webhook	触发式流程
+文件资源	Packages + Files	内部资源中心
+6.1 Discussions 缺口处理
+MVP：Issue + Label 模拟讨论区
+正式版：Flarum（Gitea OAuth）
+社区扩展：Discourse（治理能力更强）
+注：Gitea Discussions 缺失已在历史验证中确认。
+7. 记忆系统落库规范
+7.1 仓库模型
+text
+openclaw-memory-{user_id}/
+daily/YYYY-MM/YYYY-MM-DD.md
+context/preferences.yaml
+
+task-{task_name}/
+conversations/
+openclaw-context/decisions.md
+data/
+
+openclaw-shared-knowledge/
+concepts/
+procedures/
+best-practices/
+
+7.2 每日对话文件最小格式
+markdown
+# 2026-03-05 OpenClaw 对话记忆
+
+## 元数据
+```yaml
+date: 2026-03-05
+user_id: user123
+session_count: 2
+tasks_mentioned: [competitor-monitoring]
+```
+
+## 会话
+- [10:01] User: 帮我创建竞品监控任务
+- [10:02] OpenClaw: 建议使用每日8点执行
+
+## 记忆提取
+- 用户偏好：每日早上执行
+- 决策：已创建 task-competitor-monitoring
+
+7.3 AI 决策记录最小格式
+markdown
+## 2026-03-05 决策记录
+- 背景：用户新增竞品监控需求
+- 方案：创建定时采集 + 价格告警
+- 原因：符合历史偏好与业务目标
+- 风险：目标站点反爬升级
+- 结果：已执行，待次日回看
+
+8. 插件系统技术规范（Plan8 完整版）
+8.1 插件仓库标准结构
+text
+plugin-xxx/
+├─ plugin.yaml
+├─ README.md
+├─ docker-compose.yml
+├─ .env.example
+├─ src/
+├─ config/
+├─ data/
+├─ logs/
+└─ tests/
+
+8.2 plugin.yaml 必填字段
+metadata（name/version/license/repository）
+requirements（CPU / 内存 / 存储 / 依赖）
+config（配置项与校验规则）
+api（端点、权限、限流）
+quick_start（最短启动路径）
+8.3 发现机制（Topic 标签）
+通过 Gitea Topic 管理插件分类和能力标签。
+必须包含统一前缀标签，便于自动发现与治理。
+8.4 质量门禁
+元数据与签名校验
+镜像漏洞扫描
+权限与网络边界扫描
+审查清单（文档、测试、回滚路径）
+8.5 开发工具链
+bash
+运行
+openclaw-plugin-cli create
+openclaw-plugin-cli validate
+openclaw-plugin-cli test
+openclaw-plugin-cli publish
+
+8.6 生命周期
+Discover -> Verify -> Install -> Start -> Observe -> Upgrade/Rollback
+9. 数据采集与素材系统
+9.1 采集层组件
+表格
+组件	用途
+Crawlab	分布式爬虫任务编排
+Scrapy	离线解析
+Playwright	动态站点渲染
+yt-dlp	视频 / 音频下载
+PRAW	Reddit 官方 API
+twscrape	X/Twitter 数据接入
+9.2 可靠性组件（一期必备）
+账号池
+代理池
+会话租约
+断点续爬
+9.3 多模态索引链路
+text
+采集 -> 清洗 -> 解析 -> 召回 -> 融合(RRF) -> 重排 -> 返回
+
+文本检索：Meilisearch
+向量检索：Qdrant
+图像 / 视频向量：CLIP/SigLIP
+音频转录：Whisper
+9.4 文件级检索
+Windows：Everything
+Linux：FSearch
+对外统一：File Search Adapter (/search/file)
+9.5 硬件基线
+表格
+场景	建议配置
+MVP 单机	4vCPU / 8GB RAM / 100GB SSD
+团队生产	8vCPU / 16GB RAM / 300GB SSD
+多模态增强	16vCPU / 32GB RAM + 1 张推理 GPU
+10. OpenAPI 契约与技术基线锁定
+10.1 API 契约
+统一 /api/v1 版本前缀
+RESTful 主接口 + 可选 GraphQL
+OpenAPI 作为单一协议事实源
+10.2 TECH_BASELINE_LOCK
+每个核心组件需要记录：
+主选型
+备选型
+锁定级别
+替换触发条件
+示例：
+表格
+领域	主选型	备选型	替换触发条件
+Agent 编排	OpenClaw	LangChain + LangGraph	上游不可用或授权风险上升
+工作流	自研 Engine /n8n	n8n / Temporal	稳定性或维护成本不达标
+讨论区	Flarum	Discourse	并发规模超阈值
+11. 部署与运维
+11.1 生产网络与网关
+Cloudflare：DNS/CDN/WAF
+Traefik：TLS、路由、反向代理
+三层网络：frontend /backend/monitoring
+11.2 观测与恢复
+指标：Prometheus
+日志：Loki + Promtail
+看板：Grafana
+备份：每日增量、每周全量、异地副本
+指标目标：RTO <= 4h，RPO <= 24h
+11.3 域名规划
+text
+agentcrawl.com
+api.agentcrawl.com
+git.agentcrawl.com
+forum.agentcrawl.com
+monitoring.agentcrawl.com
+
+11.4 服务器选型建议
+表格
+方案	参考配置	月成本	适用阶段
+Linode Tokyo	4vCPU/8GB/100GB	~$48	MVP
+阿里云香港	4vCPU/8GB	~$90-$115	扩展
+Vultr Tokyo	4vCPU/8GB	~$24-$48	测试
+11.5 6 周落地计划
+Week 1：基础设施与域名
+Week 2：核心服务部署（OpenClaw/Gitea/Redis/DB）
+Week 3：插件系统最小闭环
+Week 4：记忆落库与素材索引
+Week 5：监控、备份、演练
+Week 6：试点上线与复盘
+12. 合规与许可证
+12.1 许可证口径（沿用历史审查）
+主要组件许可证整体可商用（MIT/Apache/BSD/PostgreSQL）
+AGPL 组件用于监控侧独立服务，与业务应用解耦部署
+12.2 采集合规边界
+禁止绕过访问控制
+禁止抓取受限内容
+遵守 robots.txt 与目标站点 rate limit
+保留采集审计与可追溯记录
+13. 已有验证成果引用
+已验证能力（来自 Plan4 历史验证）：
+Gitea/Qdrant/Redis/PostgreSQL 实际联调通过
+关键链路总延迟可控制在 < 1.5 秒级
+Gitea 9 项核心能力中 8 项可用（Discussions 缺失）
+Plan8 不是从零假设，而是基于这些验证结果继续工程化。
+14. 验收标准
+普通用户在 IM 内完成 “建项目 - 分任务 - 提审批 - 查素材” 闭环。
+关键写操作均经 CLI Gateway，且可追溯可回放。
+插件从发现到升级回滚全流程可自动化执行。
+记忆数据按规范写入 Gitea，并可按任务与用户检索。
+多模态检索支持文本 / 图片 / 音频 / 视频聚合返回。
+平台具备监控告警、备份恢复与季度恢复演练机制。
+15. 结论
+Plan8 在技术上补齐了 Plan7 的关键短板：
+补齐了三层信任、红线规则、Promotion Pipeline。
+补齐了插件治理、记忆格式、采集可靠性和文件检索。
+补齐了 OpenClaw 风险对冲和技术基线锁定机制。
+使商业计划与工程落地具备同一套可执行语义。
+商业计划书.md 完整内容
+# AgentCrawl Plan8 商业计划书（全新重构）
+版本：v8.0日期：2026-03-05定位：面向普通办公用户的 AI 原生协作平台范围：一人公司、中小团队（5-200 人）、数据驱动业务团队
+1. 战略定义
+AgentCrawl 的核心不是做新的开发者平台，而是把成熟的开源底座重组为普通人可直接使用的办公协作系统：
+交互入口：OpenClaw in IM + OpenClaw Web
+协作底座：Gitea
+关键机制：Everything is a Repository
+增长飞轮：AI探索 -> 技能固化 -> 工作流自动化
+一句话：让团队在一个系统里完成项目、任务、审批、知识、素材与自动化，并保留可追溯历史。
+2. 市场问题与机会
+2.1 已验证痛点（来自历史方案验证）
+工具碎片化：办公人员常同时使用 8-12 个工具。
+协作低效：信息散落导致检索与对齐成本高。
+版本失控：缺少统一的版本化协作底座。
+数据主权弱：关键数据散落于第三方 SaaS。
+2.2 市场规模（用于融资叙事）
+TAM：$50B+（企业 AI 应用与协作软件大盘）
+SAM：$5B（AI 协作与自动化细分）
+SOM：$500M（初期聚焦中国与亚太中小团队）
+注：上述数字沿用历史计划中的内部口径，用于融资阶段一致叙事。
+2.3 直观成本对比
+表格
+方案	典型构成	参考成本
+传统工具栈	Slack + Trello + Notion + Workspace	~$40 / 人 / 月
+AgentCrawl 团队版	统一协作 + 插件 + 记忆 + 素材检索	~$19-49 / 人 / 月（SaaS 口径）
+目标价值不是 “替代一个工具”，而是 “替代一组割裂工具 + 增加数据资产能力”。
+3. 产品战略（Plan8 统一口径）
+3.1 双轴产品矩阵
+表格
+产品线	核心价值	主要用户	价格区间
+产品 A：AI 协作平台	项目 / 任务 / 审批 / 知识统一化	一人公司、5-50 人团队	$19-$199 / 席位 / 月
+产品 B：AI 数据采集平台	采集、索引、检索、复用	数据驱动团队	$99-$999 / 月
+产品 C：完整版	A+B 深度集成 + 企业治理	中型企业与私有部署客户	$149 / 席位 / 月起 + 服务费
+3.2 三层套餐（与 Gitea 功能映射）
+表格
+套餐	Gitea 映射	核心能力
+个人版	Repository	项目空间、基础任务、个人记忆
+团队版	Issue + PR + Projects	看板协作、审批流程、团队知识
+企业版	Wiki + Actions + Packages + Org	企业治理、自动化、审计与合规
+3.3 交互策略
+主交互：IM（Telegram / 微信 / 钉钉 / Slack）
+次交互：OpenClaw Web（可视化看板与配置）
+API：供第三方系统集成
+4. 核心能力与护城河
+4.1 一切皆仓库
+插件是仓库：独立版本、独立部署、可回滚。
+工作流是仓库：可审计、可复制、可运营。
+知识与记忆是仓库：长期沉淀为团队资产。
+4.2 OpenClaw 记忆落库 Gitea
+个人记忆：openclaw-memory-{user_id}
+项目记忆：task-{task_name}
+组织知识：openclaw-shared-knowledge
+结果：AI 的 “会话能力” 变成 “可检索、可审计、可传承” 的组织资产。
+4.3 素材管理与多模态检索
+文本：Meilisearch
+图片 / 视频：CLIP/SigLIP + Qdrant
+音频：Whisper 转录 + 全文索引
+文件级定位：Everything/FSearch 适配层
+价值：从 “采集即丢弃” 升级为 “可复用的数据资产池”。
+4.4 三层信任与可逆执行（Plan8 增补）
+探索层：OpenClaw，负责建议与意图解析。
+命令层：CLI Gateway，作为写操作唯一入口。
+工作流层：确定性执行引擎，节点级持久化。
+核心约束：写操作可追溯、可回放、可回滚。
+5. 商业模式与定价
+5.1 SaaS 收入
+表格
+版本	标准定价	说明
+个人版	$19 / 月	单人协作与基础插件
+团队版	$49 / 人 / 月	团队协作与审批闭环
+企业版	$199 / 人 / 月	私有合规、审计、SLA
+5.2 私有部署收入
+表格
+档位	一次性实施费	年维护费
+标准私有部署	$5,000	$6,000 / 年
+企业私有部署	$20,000	$24,000 / 年
+定制私有部署	$50,000+	$60,000+/ 年
+5.3 插件生态收入
+平台抽成：30%
+官方付费插件：$9-$49 / 个
+企业定制插件：项目制报价
+6. 单位经济模型（融资必备）
+表格
+产品	ARPU	CAC	3 年 LTV	LTV/CAC	回收周期
+协作版	$30 / 月	$220	$1,080	4.9x	9-12 个月
+采集版	$150 / 月	$450	$5,400	12.0x	4-6 个月
+完整版	$250 / 月	$650	$9,000	13.8x	4-6 个月
+目标：团队版和完整版承担利润，个人版承担获客与生态扩张。
+7. 财务预测（保守口径）
+表格
+年度	付费客户数	ARR	年成本	净利润
+Year 1	120	$72K	$400K	-$328K
+Year 2	400	$240K	$450K	-$210K
+Year 3	1,300	$780K	$620K	+$160K
+Year 4	3,200	$1.92M	$950K	+$970K
+预计盈亏平衡：Year 3 Q4 至 Year 4 Q1
+关键假设：个人 -> 团队转化 15%，团队 -> 企业转化 10%
+8. Go-To-Market
+8.1 分阶段策略
+阶段 1（0-6 月）：聚焦种子用户，打磨协作主链路。
+阶段 2（6-12 月）：强化插件生态与案例复制。
+阶段 3（12-18 月）：拓展私有部署与渠道伙伴。
+8.2 渠道组合
+产品驱动：模板、插件、工作流示例
+内容驱动：行业场景案例与迁移指南
+合作驱动：实施伙伴、云厂商、系统集成商
+9. 组织与执行计划
+9.1 Year 1 团队配置（精简可执行）
+表格
+角色	人数	年成本预算
+技术负责人 / CTO	1	$80K
+后端工程师	1	$60K
+全栈工程师	1	$60K
+产品 / 运营	1	$50K
+合计	4	$250K
+9.2 关键里程碑
+M1：MVP 闭环（IM -> OpenClaw -> Gitea）
+M2：插件市场最小闭环上线
+M3：首个私有部署客户交付
+M4：形成可复制销售漏斗
+10. 融资计划
+表格
+轮次	金额	目标估值	用途
+Seed	$800K-$1M	$4M-$6M	产品化、首批商业化
+Pre-A	$1.5M-$2M	$10M-$15M	规模增长与渠道建设
+A 轮	$5M+	$30M+	区域扩张与生态建设
+资金使用建议：研发 60%，市场 20%，运维与合规 10%，预备 10%。
+11. 风险与对冲
+11.1 OpenClaw 供应商风险
+风险：上游项目变化影响路线稳定性。
+对冲：保持 LangChain/LangGraph + n8n 降级替代方案，接口层抽象解耦。
+11.2 采集合规风险
+红线：禁止绕过访问控制、禁止采集受限内容、遵守 robots.txt 与 rate limit。
+11.3 生态质量风险
+机制：插件签名、审查清单、分级发布、可回滚。
+11.4 成本风险
+机制：缓存、模型路由、本地模型替代、低价值任务自动化降本。
+12. 为什么 Plan8 比 Plan7 更好
+补齐了融资必需的量化模型（ARR/CAC/LTV/ 盈亏平衡）。
+把 “办公协作平台 + 数据采集能力” 统一为可执行产品矩阵。
+明确了三层信任、红线规则、可逆执行等稳定性约束。
+明确了 OpenClaw 风险及替代路径，降低单点依赖。
+技术与商业口径一一对应，可直接用于路演与实施对齐。
+

@@ -1,0 +1,437 @@
+Title: 介绍下这个仓库
+URL: https://www.doubao.com/chat/38415673488212738
+Platform: 豆包
+Created: 2026-03-06 15:31:41
+Messages: 4
+
+User: [2026-03-06 15:31:41]
+介绍下这个仓库
+
+AI: [2026-03-16 15:33:42]
+README.mdautotest.sh这个仓库是 Nextcloud Server 的核心代码库，Nextcloud 是一款开源的私有云解决方案，旨在为个人/企业提供安全、自主可控的文件存储、同步、共享及协作能力，以下是对该仓库的详细介绍：
+一、核心定位与协议
+核心价值：定位为“所有数据的安全家园”，提供私有化的文件存储、同步、共享能力，同时支持日历、联系人、邮件、视频通话等扩展场景，替代公有云服务，保障数据主权。
+开源协议：主要遵循 AGPL-3.0-or-later（部分代码为 AGPL-3.0-only），符合开源合规要求（通过 REUSE 认证）。
+合规与质量：通过 CII 最佳实践认证、Codecov 代码覆盖率检测，且有 HackerOne 漏洞赏金计划保障安全。
+二、核心功能（从代码/文档可见）
+基础文件管理
+文件存储、删除、移动、恢复（回收站/trashbin 功能）；
+实时照片（Live Photos）：支持照片+视频联动的实时照片元数据管理；
+远程存储清理：针对联邦共享的远程存储进行自动化清理。
+数据共享能力
+跨用户/跨服务器（联邦共享）的文件共享；
+共享链接生成、权限管理、共享状态清理。
+扩展性
+支持数百款官方/第三方应用扩展（如日历、联系人、邮件、视频通话）；
+工作流引擎（Workflow Engine）：自定义业务规则（如文件匹配/过滤、自动化操作）。
+安全性
+加密机制、双因素认证；
+对 PHP 扩展/依赖版本的严格检测（PlatformRepository.php）。
+系统管理
+应用商店：管理应用的安装、更新、分类；
+维护模式：自动检测并刷新维护状态；
+用户状态管理：支持用户在线状态、个性化设置。
+三、技术栈与仓库结构
+1. 技术栈
+后端：PHP 为主（核心逻辑、扩展版本解析、API 接口），基于 WebDAV 协议实现文件操作；
+前端：TypeScript + Vue.js（Vue2/Vue3 过渡中），使用 Pinia/Vuex 做状态管理；
+测试体系：
+集成测试：Behat 特性测试（build/integration/ 下的 .feature 文件）；
+E2E 测试：Cypress（如 LivePhotos 功能测试）；
+自动化脚本：autotest.sh 等完成批量测试。
+2. 关键目录/文件
+表格
+路径/文件	作用
+apps/	核心应用模块（files 文件管理、files_sharing 共享、workflowengine 工作流、settings 系统设置等）
+lib/	服务端核心逻辑（如 App/PlatformRepository.php 处理 PHP 扩展版本解析）
+build/integration/	集成测试用例（联邦共享、回收站等功能的场景测试）
+cypress/	E2E 测试（如 LivePhotos 功能的端到端验证）
+core/	系统核心工具（剪贴板兼容、维护模式检测、当前用户信息等）
+README.md	仓库总览、功能介绍、贡献指南、部署方式
+四、开发与贡献
+开发环境：提供本地开发环境搭建文档，新手可从 good first issue 入手；
+贡献流程：分支开发 → 提交（需 sign off）→ PR 评审 → 合并；
+多角色参与：支持开发、翻译、设计、测试、社区支持等多种贡献方式，无需 CLA（贡献者许可协议）。
+五、部署与使用
+部署方式：自主部署（硬件/虚拟机）、预装设备、服务商托管、企业版（Nextcloud Enterprise）；
+生态支持：官方应用商店、论坛/社交平台社区支持，企业用户可选择商业版技术支持。
+六、核心特色
+自主可控：数据存储在自有服务器，避免公有云数据泄露风险；
+高度扩展：通过应用商店扩展功能，适配个人、企业、教育/公共部门等场景；
+安全合规：遵循开源协议，内置安全机制，符合数据隐私法规。
+总结来说，该仓库是 Nextcloud 私有云的核心载体，覆盖了从底层文件存储到上层应用扩展、安全管理的全链路能力，同时提供完善的测试和贡献体系，支撑 Nextcloud 生态的持续迭代。这个仓库是 Nextcloud Server 的核心代码库，Nextcloud 是一款开源的私有云解决方案，旨在为个人/企业提供安全、自主可控的文件存储、同步、共享及协作能力，以下是对该仓库的详细介绍：
+一、核心定位与协议
+核心价值：定位为“所有数据的安全家园”，提供私有化的文件存储、同步、共享能力，同时支持日历、联系人、邮件、视频通话等扩展场景，替代公有云服务，保障数据主权。
+开源协议：主要遵循 AGPL-3.0-or-later（部分代码为 AGPL-3.0-only），符合开源合规要求（通过 REUSE 认证）。
+合规与质量：通过 CII 最佳实践认证、Codecov 代码覆盖率检测，且有 HackerOne 漏洞赏金计划保障安全。
+二、核心功能（从代码/文档可见）
+基础文件管理
+文件存储、删除、移动、恢复（回收站/trashbin 功能）；
+实时照片（Live Photos）：支持照片+视频联动的实时照片元数据管理；
+远程存储清理：针对联邦共享的远程存储进行自动化清理。
+数据共享能力
+跨用户/跨服务器（联邦共享）的文件共享；
+共享链接生成、权限管理、共享状态清理。
+扩展性
+支持数百款官方/第三方应用扩展（如日历、联系人、邮件、视频通话）；
+工作流引擎（Workflow Engine）：自定义业务规则（如文件匹配/过滤、自动化操作）。
+安全性
+加密机制、双因素认证；
+对 PHP 扩展/依赖版本的严格检测（PlatformRepository.php）。
+系统管理
+应用商店：管理应用的安装、更新、分类；
+维护模式：自动检测并刷新维护状态；
+用户状态管理：支持用户在线状态、个性化设置。
+三、技术栈与仓库结构
+1. 技术栈
+后端：PHP 为主（核心逻辑、扩展版本解析、API 接口），基于 WebDAV 协议实现文件操作；
+前端：TypeScript + Vue.js（Vue2/Vue3 过渡中），使用 Pinia/Vuex 做状态管理；
+测试体系：
+集成测试：Behat 特性测试（build/integration/ 下的 .feature 文件）；
+E2E 测试：Cypress（如 LivePhotos 功能测试）；
+自动化脚本：autotest.sh 等完成批量测试。
+2. 关键目录/文件
+表格
+路径/文件	作用
+apps/	核心应用模块（files 文件管理、files_sharing 共享、workflowengine 工作流、settings 系统设置等）
+lib/	服务端核心逻辑（如 App/PlatformRepository.php 处理 PHP 扩展版本解析）
+build/integration/	集成测试用例（联邦共享、回收站等功能的场景测试）
+cypress/	E2E 测试（如 LivePhotos 功能的端到端验证）
+core/	系统核心工具（剪贴板兼容、维护模式检测、当前用户信息等）
+README.md	仓库总览、功能介绍、贡献指南、部署方式
+四、开发与贡献
+开发环境：提供本地开发环境搭建文档，新手可从 good first issue 入手；
+贡献流程：分支开发 → 提交（需 sign off）→ PR 评审 → 合并；
+多角色参与：支持开发、翻译、设计、测试、社区支持等多种贡献方式，无需 CLA（贡献者许可协议）。
+五、部署与使用
+部署方式：自主部署（硬件/虚拟机）、预装设备、服务商托管、企业版（Nextcloud Enterprise）；
+生态支持：官方应用商店、论坛/社交平台社区支持，企业用户可选择商业版技术支持。
+六、核心特色
+自主可控：数据存储在自有服务器，避免公有云数据泄露风险；
+高度扩展：通过应用商店扩展功能，适配个人、企业、教育/公共部门等场景；
+安全合规：遵循开源协议，内置安全机制，符合数据隐私法规。
+总结来说，该仓库是 Nextcloud 私有云的核心载体，覆盖了从底层文件存储到上层应用扩展、安全管理的全链路能力，同时提供完善的测试和贡献体系，支撑 Nextcloud 生态的持续迭代。
+
+User: [2026-03-06 15:33:35]
+在群晖里部署一个网站或者说俗称管理系统，
+目的，我们有时候为了一个项目要找大量的素材，都是人工查找后，复制到一个项目文件夹，这样会产生大量的重复文件，也查看不直观。我们建一个素材管理系统，每次同时找到素材后，把链接放入系统中，经理和团队成员通过网页可以知道查看素材，确定需要哪个点击素材元素位置按钮就可以直接找到原文，你看这个项目适合吗
+
+AI: [2026-03-16 15:33:42]
+<thinking>
+用户现在的需求是在群晖上部署一个素材管理系统，核心痛点是人工找素材复制到文件夹导致重复文件、查看不直观，想要的功能是录入素材链接，团队能网页查看，点击能跳转到原文。首先要分析这个项目的适配性，然后给出具体的方案，因为用户是在群晖上部署，要考虑群晖的环境特点。
+首先，先回答项目是否适合：肯定是适合的，先说明优势，解决的痛点，然后给出具体的部署方案，要贴合群晖的操作，尽量简单，因为用户可能不是专业的开发，重点在实用性。
+首先，分析项目的适配性：
+
+解决核心痛点：避免重复文件（只存链接不存文件）、查看直观（网页化展示）、团队协作（群晖本身有网络访问能力，可共享）。
+群晖的优势：群晖有 Web Station、Docker、PHP/MySQL 环境，部署简单，自带权限管理，适合小团队使用。
+
+然后，给出具体的实现方案，分两种：轻量版（适合快速上手，低代码）和稍完善版（Docker 部署，功能更多），因为用户是小团队，优先轻量版。
+轻量版方案：
+
+技术栈：PHP + MySQL（群晖自带） + 简单 HTML/CSS/JS，不用复杂框架，新手也能搞定。
+功能模块：素材录入（标题、链接、分类、项目、备注、上传人、时间）、素材列表查看、分类筛选、搜索、点击链接跳转。
+部署步骤：
+群晖开启 Web Station 和 MySQL/MariaDB（套件中心安装）。
+创建数据库和表。
+上传代码到 Web 目录。
+配置数据库连接。
+测试访问。
+然后提供完整的代码，包括数据库建表语句、前端页面、后端处理逻辑，代码要注释详细，适配群晖环境。
+还要说明群晖的具体操作步骤，比如怎么安装套件，怎么设置 Web 目录，怎么访问。
+最后总结关键点，让用户清楚核心优势和部署重点。
+</thinking>
+你的这个素材管理系统需求非常适合在群晖上部署，既解决了 “重复文件”“查看不直观” 的核心痛点，又能利用群晖的轻量化、易部署、自带权限管理的特性，满足小团队的协作需求。下面我先分析项目的适配性，再给出可直接落地的部署方案（轻量版，无需复杂开发，新手也能搞定）。
+一、项目适配性分析（为什么适合）
+核心痛点精准解决
+替代 “复制文件到文件夹”：只存储素材链接（而非文件本身），从根源杜绝重复文件，节省群晖存储空间；
+可视化 + 协作：网页化展示所有素材，按项目 / 分类筛选，团队成员（经理、组员）可随时查看，点击链接直达原文，比翻文件夹高效得多。
+群晖的天然适配性
+部署成本低：群晖自带 Web Station、MySQL/MariaDB 套件，无需额外搭建服务器环境；
+权限易管控：群晖可通过用户组限制访问权限（比如仅项目团队可见），也能设置外网访问（如需）；
+维护简单：轻量版系统无需复杂运维，适合非专业开发的团队使用。
+需求轻量化，无需过度设计
+你的核心需求是 “录入链接→查看→跳转”，无需复杂的文件上传、编辑等功能，轻量版系统即可满足，开发 / 部署周期短（1-2 小时就能跑起来）。
+二、群晖部署素材管理系统（轻量版方案）
+前置准备（群晖端）
+安装必备套件：
+打开群晖「套件中心」，搜索并安装 Web Station（网页服务器）、MariaDB 10（数据库，替代 MySQL）、PHP 7.4/8.0（Web Station 会自动关联，选稳定版即可）。
+配置基础环境：
+打开「Web Station」→ 「网站门户」→ 新增一个网站（比如命名为 material-manage），设置「文档根目录」为群晖的一个文件夹（比如 web/material-manage），「PHP 版本」选择已安装的版本；
+打开「MariaDB 10」→ 设置数据库密码（记住，后续配置要用），并确保服务处于运行状态。
+第二步：数据库建表（核心结构）
+打开群晖「phpMyAdmin」（安装 MariaDB 后会自带，或通过 Web Station 访问 http://群晖IP/phpmyadmin）；
+新建数据库：比如命名为 material_manage；
+执行以下 SQL 语句创建素材表（复制粘贴即可）：
+sql
+CREATE TABLE `material_list` (
+`id` int(11) NOT NULL AUTO_INCREMENT COMMENT '素材ID',
+`title` varchar(255) NOT NULL COMMENT '素材标题（方便识别）',
+`link` varchar(500) NOT NULL COMMENT '素材链接',
+`project` varchar(100) NOT NULL COMMENT '所属项目',
+`category` varchar(50) DEFAULT '' COMMENT '素材分类（如图片/文案/视频）',
+`remark` text DEFAULT '' COMMENT '备注（比如素材用途、优缺点）',
+`uploader` varchar(50) NOT NULL COMMENT '录入人',
+`create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '录入时间',
+PRIMARY KEY (`id`),
+KEY `idx_project` (`project`),
+KEY `idx_category` (`category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='素材管理表';
+
+第三步：部署系统代码（完整可直接用）
+创建以下 3 个文件，上传到你在 Web Station 中设置的「文档根目录」（比如 web/material-manage）：
+1. 配置文件（config.php）—— 填写你的数据库信息
+php
+运行
+<?php
+// 数据库配置（替换成你的群晖MariaDB信息）
+$db_host = 'localhost'; // 群晖本地数据库，无需修改
+$db_user = 'root'; // 默认用户名，如需自定义可修改
+$db_pwd = '你的MariaDB密码'; // 第一步设置的数据库密码
+$db_name = 'material_manage'; // 新建的数据库名
+
+// 连接数据库
+$conn = mysqli_connect($db_host, $db_user, $db_pwd, $db_name);
+if (!$conn) {
+die("数据库连接失败：" . mysqli_connect_error());
+}
+// 设置字符集
+mysqli_set_charset($conn, 'utf8mb4');
+?>
+
+2. 素材录入页面（add.php）
+php
+运行
+<?php
+require_once 'config.php';
+$msg = '';
+// 提交表单时处理
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+$title = trim($_POST['title']);
+$link = trim($_POST['link']);
+$project = trim($_POST['project']);
+$category = trim($_POST['category']);
+$remark = trim($_POST['remark']);
+$uploader = trim($_POST['uploader']);
+
+// 简单验证
+if (empty($title) || empty($link) || empty($project) || empty($uploader)) {
+$msg = '标题、链接、项目、录入人不能为空！';
+} else {
+// 插入数据
+$sql = "INSERT INTO material_list (title, link, project, category, remark, uploader)
+VALUES ('$title', '$link', '$project', '$category', '$remark', '$uploader')";
+if (mysqli_query($conn, $sql)) {
+$msg = '素材录入成功！';
+// 清空表单
+$_POST = [];
+} else {
+$msg = '录入失败：' . mysqli_error($conn);
+}
+}
+}
+?>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>素材录入 - 项目素材管理系统</title>
+<style>
+body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 20px; }
+.form-group { margin: 15px 0; }
+label { display: block; margin-bottom: 5px; font-weight: bold; }
+input, textarea, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+button:hover { background: #0056b3; }
+.msg { padding: 10px; margin: 10px 0; border-radius: 4px; }
+.success { background: #d4edda; color: #155724; }
+.error { background: #f8d7da; color: #721c24; }
+</style>
+</head>
+<body>
+<h1>素材录入</h1>
+<?php if ($msg): ?>
+<div class="msg <?php echo strpos($msg, '成功') ? 'success' : 'error'; ?>"><?php echo $msg; ?></div>
+<?php endif; ?>
+<form method="POST">
+<div class="form-group">
+<label for="title">素材标题 *</label>
+<input type="text" id="title" name="title" value="<?php echo $_POST['title'] ?? ''; ?>" placeholder="比如：2024电商海报参考图">
+</div>
+<div class="form-group">
+<label for="link">素材链接 *</label>
+<input type="url" id="link" name="link" value="<?php echo $_POST['link'] ?? ''; ?>" placeholder="https://xxx.com/xxx">
+</div>
+<div class="form-group">
+<label for="project">所属项目 *</label>
+<input type="text" id="project" name="project" value="<?php echo $_POST['project'] ?? ''; ?>" placeholder="比如：2024618电商活动">
+</div>
+<div class="form-group">
+<label for="category">素材分类</label>
+<select id="category" name="category">
+<option value="">请选择</option>
+<option value="图片" <?php echo ($_POST['category'] ?? '') == '图片' ? 'selected' : ''; ?>>图片</option>
+<option value="文案" <?php echo ($_POST['category'] ?? '') == '文案' ? 'selected' : ''; ?>>文案</option>
+<option value="视频" <?php echo ($_POST['category'] ?? '') == '视频' ? 'selected' : ''; ?>>视频</option>
+<option value="其他" <?php echo ($_POST['category'] ?? '') == '其他' ? 'selected' : ''; ?>>其他</option>
+</select>
+</div>
+<div class="form-group">
+<label for="remark">备注</label>
+<textarea id="remark" name="remark" rows="3" placeholder="比如：该素材适合海报主视觉/文案亮点是简洁"><?php echo $_POST['remark'] ?? ''; ?></textarea>
+</div>
+<div class="form-group">
+<label for="uploader">录入人 *</label>
+<input type="text" id="uploader" name="uploader" value="<?php echo $_POST['uploader'] ?? ''; ?>" placeholder="比如：张三">
+</div>
+<button type="submit">提交素材</button>
+</form>
+</body>
+</html>
+
+3. 素材查看 / 筛选页面（index.php）—— 核心查看页面
+php
+运行
+<?php
+require_once 'config.php';
+// 筛选条件
+$project = isset($_GET['project']) ? trim($_GET['project']) : '';
+$category = isset($_GET['category']) ? trim($_GET['category']) : '';
+
+// 构建查询条件
+$where = '1=1';
+if (!empty($project)) {
+$where .= " AND project = '$project'";
+}
+if (!empty($category)) {
+$where .= " AND category = '$category'";
+}
+
+// 查询素材列表
+$sql = "SELECT * FROM material_list WHERE $where ORDER BY create_time DESC";
+$result = mysqli_query($conn, $sql);
+$materials = [];
+if (mysqli_num_rows($result) > 0) {
+while ($row = mysqli_fetch_assoc($result)) {
+$materials[] = $row;
+}
+}
+
+// 获取所有项目（用于筛选下拉框）
+$project_sql = "SELECT DISTINCT project FROM material_list ORDER BY project";
+$project_result = mysqli_query($conn, $project_sql);
+$projects = [];
+while ($row = mysqli_fetch_assoc($project_result)) {
+$projects[] = $row['project'];
+}
+
+// 获取所有分类（用于筛选下拉框）
+$category_list = ['图片', '文案', '视频', '其他'];
+?>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>素材列表 - 项目素材管理系统</title>
+<style>
+body { font-family: Arial, sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+.filter { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+.filter select, .filter button { padding: 8px; margin-right: 10px; border: 1px solid #ccc; border-radius: 4px; }
+.filter button { background: #007bff; color: white; border: none; cursor: pointer; }
+.filter button:hover { background: #0056b3; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+th { background: #f2f2f2; }
+tr:hover { background: #f8f9fa; }
+.link-btn { padding: 5px 10px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; }
+.link-btn:hover { background: #218838; }
+.add-link { display: inline-block; margin-bottom: 10px; padding: 8px 15px; background: #17a2b8; color: white; text-decoration: none; border-radius: 4px; }
+.add-link:hover { background: #138496; }
+</style>
+</head>
+<body>
+<h1>项目素材管理系统</h1>
+<a href="add.php" class="add-link">录入新素材</a>
+
+<!-- 筛选区域 -->
+<div class="filter">
+<form method="GET">
+<label>项目筛选：</label>
+<select name="project">
+<option value="">全部项目</option>
+<?php foreach ($projects as $p): ?>
+<option value="<?php echo $p; ?>" <?php echo $project == $p ? 'selected' : ''; ?>>
+<?php echo $p; ?>
+</option>
+<?php endforeach; ?>
+</select>
+
+<label>分类筛选：</label>
+<select name="category">
+<option value="">全部分类</option>
+<?php foreach ($category_list as $c): ?>
+<option value="<?php echo $c; ?>" <?php echo $category == $c ? 'selected' : ''; ?>>
+<?php echo $c; ?>
+</option>
+<?php endforeach; ?>
+</select>
+
+<button type="submit">筛选</button>
+<button type="button" onclick="window.location.href='index.php'">重置</button>
+</form>
+</div>
+
+<!-- 素材列表 -->
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>素材标题</th>
+<th>所属项目</th>
+<th>分类</th>
+<th>录入人</th>
+<th>录入时间</th>
+<th>备注</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody>
+<?php if (empty($materials)): ?>
+<tr>
+<td colspan="8" style="text-align: center;">暂无素材，请先录入</td>
+</tr>
+<?php else: ?>
+<?php foreach ($materials as $index => $m): ?>
+<tr>
+<td><?php echo $index + 1; ?></td>
+<td><?php echo $m['title']; ?></td>
+<td><?php echo $m['project']; ?></td>
+<td><?php echo $m['category'] ?: '未分类'; ?></td>
+<td><?php echo $m['uploader']; ?></td>
+<td><?php echo $m['create_time']; ?></td>
+<td><?php echo $m['remark'] ?: '无'; ?></td>
+<td>
+<a href="<?php echo $m['link']; ?>" target="_blank" class="link-btn">查看原文</a>
+</td>
+</tr>
+<?php endforeach; ?>
+<?php endif; ?>
+</tbody>
+</table>
+</body>
+</html>
+
+第四步：访问使用
+将上述 3 个文件上传到群晖的 Web 目录后，在浏览器访问：http://你的群晖IP/文件夹名/index.php（比如 http://192.168.1.100/material-manage/index.php）；
+点击「录入新素材」填写信息（标题、链接、项目等），提交后即可在列表页看到；
+团队成员可通过「项目筛选」「分类筛选」快速找到对应素材，点击「查看原文」直接跳转到素材链接。
+三、进阶优化建议（可选）
+权限控制：如果需要限制访问，可在群晖「Web Station」中开启「基本认证」，设置用户名密码，仅团队成员可访问；
+外网访问：如需在外网查看，可通过群晖「QuickConnect」或「DDNS」配置外网访问地址；
+功能扩展：后续可增加 “素材标记（已选用 / 废弃）”“链接有效性检测”“批量导出” 等功能；
+Docker 部署（可选）：如果不想用群晖自带的 PHP/MySQL，也可通过 Docker 部署（比如用 Docker Compose 运行 PHP+MySQL+Nginx），更灵活。
+总结
+该项目高度适配你的需求：解决重复文件、可视化查看、团队协作跳转原文的核心痛点，且群晖部署成本低、易维护；
+轻量版方案无需专业开发能力，复制代码即可部署，满足小团队基础使用；
+核心价值是 “用链接替代文件存储”，既节省空间，又提升团队素材查看 / 协作效率。
+你可以先按上述步骤部署测试，后续根据团队使用反馈再调整功能（比如增加筛选条件、备注优化等）。
+
