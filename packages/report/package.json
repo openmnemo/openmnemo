@@ -34,7 +34,7 @@
     "tsup": "^8.4.0",
     "typescript": "^5.7.3",
     "vitest": "^4.1.0",
-    "@anthropic-ai/sdk": "^0.79.0"
+    "@anthropic-ai/sdk": "^0.80.0"
   },
   "files": [
     "dist"
@@ -52,7 +52,7 @@
     }
   },
   "peerDependencies": {
-    "@anthropic-ai/sdk": "^0.79.0"
+    "@anthropic-ai/sdk": "^0.80.0"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/sdk": {
